@@ -1,4 +1,6 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'login_page.dart';
 
 // ---------------------------------------------------------------------------
 // COLORS (shared across this file — move to a theme.dart once more screens exist)
@@ -28,7 +30,7 @@ class _HomePageState extends State<HomePage> {
   // one page per bottom nav tab — kept in a list so switching tabs
   // is just changing an index, no rebuilding widgets from scratch
   late final List<Widget> _pages = [
-    _HomeTab(userName: widget.userName),
+    _HomeTab(userName: widget.userName, onLogout: _handleLogout),
     const _LearnTab(),
     const _PlayTab(),
     const _ProgressTab(),
@@ -37,6 +39,44 @@ class _HomePageState extends State<HomePage> {
 
   void _onTabTapped(int index) {
     setState(() => _selectedIndex = index);
+  }
+
+  Future<void> _handleLogout() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Log out?'),
+        content: const Text('Are you sure you want to log out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Log out'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLogout != true || !mounted) return;
+
+    try {
+      await FirebaseAuth.instance.signOut();
+      debugPrint('Logged out');
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+        (route) => false,
+      );
+    } on FirebaseAuthException catch (error) {
+      debugPrint('Logout failed: ${error.code}');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not log out. Please try again.')),
+      );
+    }
   }
 
   @override
@@ -118,7 +158,8 @@ void _showComingSoon(BuildContext context, String featureName) {
 // ---------------------------------------------------------------------------
 class _HomeTab extends StatelessWidget {
   final String userName;
-  const _HomeTab({required this.userName});
+  final VoidCallback onLogout;
+  const _HomeTab({required this.userName, required this.onLogout});
 
   static const List<_FeatureItem> _features = [
     _FeatureItem('Alphabet', Icons.abc_rounded, AppColors.pink),
@@ -193,6 +234,11 @@ class _HomeTab extends StatelessWidget {
                         ),
                       ],
                     ),
+                  ),
+                  IconButton(
+                    onPressed: onLogout,
+                    tooltip: 'Log out',
+                    icon: const Icon(Icons.logout_rounded, color: Colors.white),
                   ),
                 ],
               ),
