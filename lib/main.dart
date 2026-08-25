@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'login_page.dart';
+import 'theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,12 +27,7 @@ class PreschoolApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Little Learners',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        fontFamily: 'ComicNeue', // add a rounded/playful font in pubspec.yaml
-        scaffoldBackgroundColor: const Color(0xFFFFF8E7),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.lightTheme(),
       home: const SplashScreen(),
     );
   }

@@ -1,69 +1,75 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'home_page.dart';
-import 'sign_up_page.dart';
+import 'login_page.dart';
 
 // ---------------------------------------------------------------------------
-// LOGIN PAGE — for returning parents/teachers who already have an account
+// SIGN UP PAGE — for new parents/teachers creating an account
 // ---------------------------------------------------------------------------
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+class SignUpPage extends StatefulWidget {
+  const SignUpPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<SignUpPage> createState() => _SignUpPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _SignUpPageState extends State<SignUpPage> {
   final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
+  String _selectedRole = 'Parent';
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  // Signs an existing user in. Throws FirebaseAuthException on failure
-  // (e.g. wrong password, no account with that email).
-  Future<UserCredential> _signInWithEmailPassword() async {
-    return await FirebaseAuth.instance.signInWithEmailAndPassword(
+  // Creates the account in Firebase Auth and returns the resulting
+  // UserCredential. Throws a FirebaseAuthException on failure.
+  Future<UserCredential> _createUserWithEmailPassword() async {
+    return await FirebaseAuth.instance.createUserWithEmailAndPassword(
       email: _emailController.text.trim(),
       password: _passwordController.text.trim(),
     );
   }
 
-  void _handleLogin() async {
+  void _handleSignUp() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      final userCredential = await _signInWithEmailPassword();
-      debugPrint('Logged in: ${userCredential.user?.uid}');
+      final userCredential = await _createUserWithEmailPassword();
+
+      // Save the name the user typed as their Firebase displayName, so
+      // LoginPage can read it back later via user?.displayName.
+      await userCredential.user?.updateDisplayName(_nameController.text.trim());
+
+      debugPrint('Account created: ${userCredential.user?.uid}');
+      // TODO: also save _selectedRole (Parent/Teacher) to Firestore —
+      // Firebase Auth alone has no field for custom roles.
 
       if (!mounted) return;
 
-      // We haven't saved the user's display name to Firestore yet, so fall
-      // back to their Firebase displayName (if set) or a friendly default.
-      final name = userCredential.user?.displayName ?? 'Explorer';
-
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => HomePage(userName: name)),
+        MaterialPageRoute(
+          builder: (_) => HomePage(userName: _nameController.text),
+        ),
       );
     } on FirebaseAuthException catch (e) {
       String message = 'Something went wrong. Please try again.';
-      if (e.code == 'user-not-found' || e.code == 'invalid-credential') {
-        message = 'No account found with that email and password.';
-      } else if (e.code == 'wrong-password') {
-        message = 'Incorrect password. Please try again.';
+      if (e.code == 'email-already-in-use') {
+        message = 'That email is already registered. Try logging in instead.';
+      } else if (e.code == 'weak-password') {
+        message = 'Please choose a stronger password.';
       } else if (e.code == 'invalid-email') {
         message = "That email address doesn't look right.";
-      } else if (e.code == 'too-many-requests') {
-        message = 'Too many attempts. Please wait a moment and try again.';
       } else if (e.code == 'network-request-failed') {
         message = 'No internet connection. Please check your network.';
       }
@@ -92,7 +98,7 @@ class _LoginPageState extends State<LoginPage> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF4EE0C1), Color(0xFFFFF8E7)],
+            colors: [Color(0xFFFFC93C), Color(0xFFFFF8E7)],
           ),
         ),
         child: SafeArea(
@@ -103,46 +109,63 @@ class _LoginPageState extends State<LoginPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 40),
-                  Center(
-                    child: Container(
-                      width: 90,
-                      height: 90,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
-                            blurRadius: 12,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
+                  const SizedBox(height: 10),
+                  Row(
+                    children: const [
+                      Icon(
+                        Icons.school_rounded,
+                        color: Color(0xFFFF6B9D),
+                        size: 34,
                       ),
-                      child: const Icon(
-                        Icons.emoji_emotions_rounded,
-                        size: 56,
-                        color: Color(0xFF4EE0C1),
+                      SizedBox(width: 10),
+                      Text(
+                        'Create Account',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF3A3A3A),
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Welcome Back!',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF3A3A3A),
-                    ),
-                    textAlign: TextAlign.center,
+                    ],
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    "Log in to continue the learning fun! 🌈",
+                    "Join us and let's start learning together! 🚀",
                     style: TextStyle(fontSize: 15, color: Color(0xFF6B6B6B)),
-                    textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 36),
+                  const SizedBox(height: 30),
+
+                  // Role toggle: Parent / Teacher
+                  Row(
+                    children: [
+                      _RoleChip(
+                        label: 'Parent',
+                        icon: Icons.family_restroom_rounded,
+                        selected: _selectedRole == 'Parent',
+                        color: const Color(0xFFFF6B9D),
+                        onTap: () => setState(() => _selectedRole = 'Parent'),
+                      ),
+                      const SizedBox(width: 12),
+                      _RoleChip(
+                        label: 'Teacher',
+                        icon: Icons.menu_book_rounded,
+                        selected: _selectedRole == 'Teacher',
+                        color: const Color(0xFF4EE0C1),
+                        onTap: () => setState(() => _selectedRole = 'Teacher'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  _KidTextField(
+                    controller: _nameController,
+                    label: 'Full Name',
+                    icon: Icons.person_rounded,
+                    validator: (value) => (value == null || value.isEmpty)
+                        ? 'Please enter your name'
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
 
                   _KidTextField(
                     controller: _emailController,
@@ -169,29 +192,34 @@ class _LoginPageState extends State<LoginPage> {
                         _obscurePassword
                             ? Icons.visibility_rounded
                             : Icons.visibility_off_rounded,
-                        color: const Color(0xFF4EE0C1),
+                        color: const Color(0xFFFF6B9D),
                       ),
                       onPressed: () =>
                           setState(() => _obscurePassword = !_obscurePassword),
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter your password';
+                        return 'Please enter a password';
+                      }
+                      if (value.length < 6) {
+                        return 'Password must be at least 6 characters';
                       }
                       return null;
                     },
                   ),
                   const SizedBox(height: 32),
 
+                  // Sign Up button — disabled and shows a spinner while
+                  // Firebase is creating the account.
                   SizedBox(
                     width: double.infinity,
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: _isLoading ? null : _handleLogin,
+                      onPressed: _isLoading ? null : _handleSignUp,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4EE0C1),
+                        backgroundColor: const Color(0xFFFF6B9D),
                         disabledBackgroundColor: const Color(
-                          0xFF4EE0C1,
+                          0xFFFF6B9D,
                         ).withOpacity(0.6),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(18),
@@ -208,7 +236,7 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                             )
                           : const Text(
-                              'Log In 🚀',
+                              'Sign Up 🎈',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
@@ -222,22 +250,22 @@ class _LoginPageState extends State<LoginPage> {
                   Center(
                     child: GestureDetector(
                       onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const SignUpPage()),
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(builder: (_) => const LoginPage()),
                         );
                       },
                       child: RichText(
                         text: const TextSpan(
-                          text: "Don't have an account? ",
+                          text: 'Already have an account? ',
                           style: TextStyle(
                             color: Color(0xFF6B6B6B),
                             fontSize: 14,
                           ),
                           children: [
                             TextSpan(
-                              text: 'Sign Up',
+                              text: 'Log In',
                               style: TextStyle(
-                                color: Color(0xFFFF6B9D),
+                                color: Color(0xFF4EE0C1),
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -258,8 +286,65 @@ class _LoginPageState extends State<LoginPage> {
 }
 
 // ---------------------------------------------------------------------------
-// REUSABLE WIDGET (used only by this page — SignUpPage has its own copy)
+// REUSABLE WIDGETS (used only by this page — LoginPage has its own copy)
 // ---------------------------------------------------------------------------
+
+class _RoleChip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _RoleChip({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            color: selected ? color : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color, width: 2),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: color.withOpacity(0.4),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : [],
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: selected ? Colors.white : color, size: 26),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  color: selected ? Colors.white : color,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _KidTextField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
@@ -301,7 +386,7 @@ class _KidTextField extends StatelessWidget {
         style: const TextStyle(fontSize: 16),
         decoration: InputDecoration(
           labelText: label,
-          prefixIcon: Icon(icon, color: const Color(0xFF4EE0C1)),
+          prefixIcon: Icon(icon, color: const Color(0xFFFF6B9D)),
           suffixIcon: suffixIcon,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(18),
