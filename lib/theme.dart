@@ -1,35 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'utils/app_colors.dart';
 
-// ---------------------------------------------------------------------------
-// COLOR PALETTE — single source of truth for the whole app
-// ---------------------------------------------------------------------------
-class AppColors {
-  static const pink = Color(0xFFFF6B9D);
-  static const yellow = Color(0xFFFFC93C);
-  static const teal = Color(0xFF4EE0C1);
-  static const purple = Color(0xFF9B7BFF);
-  static const cream = Color(0xFFFFF8E7);
-  static const textDark = Color(0xFF3A3A3A);
-  static const textGrey = Color(0xFF6B6B6B);
-}
-
-// ---------------------------------------------------------------------------
-// APP THEME — every screen pulls colors/fonts/shapes from here instead of
-// hardcoding Color(0x...) on individual widgets
-// ---------------------------------------------------------------------------
 class AppTheme {
   static ThemeData lightTheme() {
-    // Baloo 2 is a rounded, playful Google Font — good fit for a kids app.
+    // Baloo 2
     final baseTextTheme = GoogleFonts.baloo2TextTheme();
 
     return ThemeData(
       useMaterial3: true,
       scaffoldBackgroundColor: AppColors.cream,
 
-      // Material 3 derives a full, harmonious palette (primary, secondary,
-      // surface tones, etc.) from these seed colors, so you don't have to
-      // hand-pick every shade yourself.
+      // Material 3
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.pink,
         primary: AppColors.pink,
@@ -41,16 +23,15 @@ class AppTheme {
       textTheme: baseTextTheme.copyWith(
         headlineMedium: baseTextTheme.headlineMedium?.copyWith(
           fontWeight: FontWeight.w800,
-          color: AppColors.textDark,
+          color: AppColors.darkGray,
         ),
-        bodyLarge: baseTextTheme.bodyLarge?.copyWith(color: AppColors.textDark),
+        bodyLarge: baseTextTheme.bodyLarge?.copyWith(color: AppColors.darkGray),
         bodyMedium: baseTextTheme.bodyMedium?.copyWith(
-          color: AppColors.textGrey,
+          color: Colors.grey.shade600,
         ),
       ),
 
-      // Rounded, chunky buttons — easier to tap for small fingers, and
-      // reads as "friendly" rather than "sharp corporate corner".
+      // Rounded, chunky buttons
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.pink,
@@ -67,8 +48,7 @@ class AppTheme {
         ),
       ),
 
-      // Rounded, filled, soft-shadow text fields — matches the _KidTextField
-      // style already used on the login/signup pages, now centralized.
+      // Rounded, filled, soft-shadow text fields
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: Colors.white,
@@ -80,7 +60,7 @@ class AppTheme {
           borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide.none,
         ),
-        labelStyle: GoogleFonts.baloo2(color: AppColors.textGrey),
+        labelStyle: GoogleFonts.baloo2(color: Colors.grey.shade600),
       ),
 
       cardTheme: CardThemeData(

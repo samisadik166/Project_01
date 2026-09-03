@@ -3,9 +3,8 @@ import 'package:flutter/material.dart';
 import 'home_page.dart';
 import 'sign_up_page.dart';
 
-// ---------------------------------------------------------------------------
 // LOGIN PAGE — for returning parents/teachers who already have an account
-// ---------------------------------------------------------------------------
+
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -27,8 +26,8 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  // Signs an existing user in. Throws FirebaseAuthException on failure
-  // (e.g. wrong password, no account with that email).
+  // *** Signs an existing user in. Throws FirebaseAuthException on failure ***
+
   Future<UserCredential> _signInWithEmailPassword() async {
     return await FirebaseAuth.instance.signInWithEmailAndPassword(
       email: _emailController.text.trim(),
@@ -257,9 +256,8 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-// ---------------------------------------------------------------------------
 // REUSABLE WIDGET (used only by this page — SignUpPage has its own copy)
-// ---------------------------------------------------------------------------
+
 class _KidTextField extends StatelessWidget {
   final TextEditingController controller;
   final String label;

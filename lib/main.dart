@@ -33,9 +33,8 @@ class PreschoolApp extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
 // SPLASH SCREEN
-// ---------------------------------------------------------------------------
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -74,6 +73,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     // Navigate to login page after splash delay
     Timer(const Duration(seconds: 3), () {
+      if (!mounted) return;
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           transitionDuration: const Duration(milliseconds: 600),
@@ -100,11 +100,7 @@ class _SplashScreenState extends State<SplashScreen>
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFFF6B9D), // pink
-              Color(0xFFFFC93C), // yellow
-              Color(0xFF4EE0C1), // teal
-            ],
+            colors: [Color(0xFFFF6B9D), Color(0xFFFFC93C), Color(0xFF4EE0C1)],
           ),
         ),
         child: Stack(
