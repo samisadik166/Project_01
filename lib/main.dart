@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'home_page.dart';
 import 'login_page.dart';
 import 'theme.dart';
 
@@ -47,6 +49,7 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _controller;
   late Animation<double> _bounceAnimation;
   late Animation<double> _fadeAnimation;
+  Timer? _navigationTimer;
 
   @override
   void initState() {
@@ -71,23 +74,32 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward();
 
-    // Navigate to login page after splash delay
-    Timer(const Duration(seconds: 3), () {
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 600),
-          pageBuilder: (_, animation, __) => const LoginPage(),
-          transitionsBuilder: (_, animation, __, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-        ),
-      );
-    });
+    // Restore the Firebase session after the splash screen.
+    _navigationTimer = Timer(const Duration(seconds: 3), _navigateAfterSplash);
+  }
+
+  void _navigateAfterSplash() {
+    if (!mounted) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+    final destination = user == null
+        ? const LoginPage()
+        : HomePage(userName: user.displayName ?? 'Explorer');
+
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 600),
+        pageBuilder: (_, animation, __) => destination,
+        transitionsBuilder: (_, animation, __, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    );
   }
 
   @override
   void dispose() {
+    _navigationTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }

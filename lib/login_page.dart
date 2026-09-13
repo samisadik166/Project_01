@@ -2,6 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'home_page.dart';
 import 'sign_up_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'model/parent.dart';
 
 // LOGIN PAGE — for returning parents/teachers who already have an account
 
@@ -46,9 +48,15 @@ class _LoginPageState extends State<LoginPage> {
 
       if (!mounted) return;
 
-      // We haven't saved the user's display name to Firestore yet, so fall
-      // back to their Firebase displayName (if set) or a friendly default.
-      final name = userCredential.user?.displayName ?? 'Explorer';
+      final uid = userCredential.user!.uid;
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      final name = doc.exists ? ParentModel.fromDoc(doc).name : 'Explorer';
+
+      if (!mounted) return;
 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => HomePage(userName: name)),
@@ -224,7 +232,7 @@ class _LoginPageState extends State<LoginPage> {
                         Navigator.of(context).push(
                           MaterialPageRoute(builder: (_) => const SignUpPage()),
                         );
-                      },
+                      }, //login page to sign up page
                       child: RichText(
                         text: const TextSpan(
                           text: "Don't have an account? ",

@@ -1,7 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'home_page.dart';
 import 'login_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'model/parent.dart';
+import 'add_child_page.dart';
 
 // ---------------------------------------------------------------------------
 // SIGN UP PAGE — for new parents/teachers creating an account
@@ -46,20 +48,31 @@ class _SignUpPageState extends State<SignUpPage> {
 
     try {
       final userCredential = await _createUserWithEmailPassword();
+      final uid = userCredential.user!.uid;
 
-      // Save the name the user typed as their Firebase displayName, so
-      // LoginPage can read it back later via user?.displayName.
       await userCredential.user?.updateDisplayName(_nameController.text.trim());
 
-      debugPrint('Account created: ${userCredential.user?.uid}');
-      // TODO: also save _selectedRole (Parent/Teacher) to Firestore —
-      // Firebase Auth alone has no field for custom roles.
+      // Write the parent/teacher profile to Firestore
+      final parent = ParentModel(
+        uid: uid,
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        role: _selectedRole,
+        createdAt: DateTime.now(),
+      );
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .set(parent.toMap());
+
+      debugPrint('Account created: $uid');
 
       if (!mounted) return;
 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => HomePage(userName: _nameController.text),
+          builder: (_) => AddChildPage(parentName: _nameController.text.trim()),
         ),
       );
     } on FirebaseAuthException catch (e) {

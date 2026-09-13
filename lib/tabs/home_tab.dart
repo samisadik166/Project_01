@@ -107,7 +107,7 @@ class HomeTab extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         const Text(
-                          'What do you want to learn today?',
+                          'Let\'s learn, play, and have fun!',
                           style: TextStyle(fontSize: 14, color: Colors.white),
                         ),
                       ],
