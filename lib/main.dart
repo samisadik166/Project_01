@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -78,13 +79,62 @@ class _SplashScreenState extends State<SplashScreen>
     _navigationTimer = Timer(const Duration(seconds: 3), _navigateAfterSplash);
   }
 
-  void _navigateAfterSplash() {
+  Future<String> _loadHomeDisplayName(String uid) async {
+    try {
+      final childrenSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('children')
+          .orderBy('createdAt', descending: false)
+          .limit(1)
+          .get();
+
+      if (childrenSnapshot.docs.isNotEmpty) {
+        final childName = childrenSnapshot.docs.first.data()['name'] as String?;
+        if (childName != null && childName.trim().isNotEmpty) {
+          return childName.trim();
+        }
+      }
+
+      final parentDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      if (parentDoc.exists) {
+        final parentName = parentDoc.data()?['name'] as String?;
+        if (parentName != null && parentName.trim().isNotEmpty) {
+          return parentName.trim();
+        }
+      }
+    } catch (error) {
+      debugPrint('Could not resolve home screen name: $error');
+    }
+
+    return 'Explorer';
+  }
+
+  Future<void> _navigateAfterSplash() async {
     if (!mounted) return;
 
     final user = FirebaseAuth.instance.currentUser;
-    final destination = user == null
-        ? const LoginPage()
-        : HomePage(userName: user.displayName ?? 'Explorer');
+    if (user == null) {
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          transitionDuration: const Duration(milliseconds: 600),
+          pageBuilder: (_, animation, __) => const LoginPage(),
+          transitionsBuilder: (_, animation, __, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+        ),
+      );
+      return;
+    }
+
+    final displayName = await _loadHomeDisplayName(user.uid);
+    if (!mounted) return;
+
+    final destination = HomePage(userName: displayName);
 
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(

@@ -37,6 +37,41 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  Future<String> _loadHomeDisplayName(String uid) async {
+    try {
+      final childrenSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('children')
+          .orderBy('createdAt', descending: false)
+          .limit(1)
+          .get();
+
+      if (childrenSnapshot.docs.isNotEmpty) {
+        final childName = childrenSnapshot.docs.first.data()['name'] as String?;
+        if (childName != null && childName.trim().isNotEmpty) {
+          return childName.trim();
+        }
+      }
+
+      final parentDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      if (parentDoc.exists) {
+        final parentName = parentDoc.data()?['name'] as String?;
+        if (parentName != null && parentName.trim().isNotEmpty) {
+          return parentName.trim();
+        }
+      }
+    } catch (error) {
+      debugPrint('Could not resolve home screen name: $error');
+    }
+
+    return 'Explorer';
+  }
+
   void _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -49,12 +84,7 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
 
       final uid = userCredential.user!.uid;
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .get();
-
-      final name = doc.exists ? ParentModel.fromDoc(doc).name : 'Explorer';
+      final name = await _loadHomeDisplayName(uid);
 
       if (!mounted) return;
 

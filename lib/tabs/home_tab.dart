@@ -1,4 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../model/child.dart';
 import '../utils/app_colors.dart';
 import '../utils/feature_tile.dart';
 import '../features/alphabet_page.dart';
@@ -15,11 +18,63 @@ import '../features/rewards_page.dart';
 import '../features/daily_reminders_page.dart';
 
 /// Home tab page - main dashboard with all features
-class HomeTab extends StatelessWidget {
+class HomeTab extends StatefulWidget {
   final String userName;
   final VoidCallback onLogout;
 
   const HomeTab({super.key, required this.userName, required this.onLogout});
+
+  @override
+  State<HomeTab> createState() => _HomeTabState();
+}
+
+class _HomeTabState extends State<HomeTab> {
+  late Future<ChildModel> _activeChildFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _activeChildFuture = _loadActiveChild();
+  }
+
+  Future<ChildModel> _loadActiveChild() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      return ChildModel(
+        childId: 'local',
+        name: widget.userName,
+        age: 0,
+        avatarId: 'bear_1',
+        createdAt: DateTime.now(),
+        totalStars: 0,
+      );
+    }
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('children')
+          .orderBy('createdAt', descending: false)
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        return ChildModel.fromDoc(snapshot.docs.first);
+      }
+    } catch (error) {
+      debugPrint('Could not load active child for home tab: $error');
+    }
+
+    return ChildModel(
+      childId: 'local',
+      name: widget.userName,
+      age: 0,
+      avatarId: 'bear_1',
+      createdAt: DateTime.now(),
+      totalStars: 0,
+    );
+  }
 
   static const List<FeatureItem> _features = [
     FeatureItem('Alphabet', Icons.abc_rounded, AppColors.pink),
@@ -60,88 +115,114 @@ class HomeTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 30),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [AppColors.pink, AppColors.yellow],
-                ),
-                borderRadius: BorderRadius.vertical(
-                  bottom: Radius.circular(32),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
+    return FutureBuilder<ChildModel>(
+      future: _activeChildFuture,
+      builder: (context, snapshot) {
+        final child =
+            snapshot.data ??
+            ChildModel(
+              childId: 'local',
+              name: widget.userName,
+              age: 0,
+              avatarId: 'bear_1',
+              createdAt: DateTime.now(),
+              totalStars: 0,
+            );
+
+        final displayName = child.name.trim().isEmpty
+            ? widget.userName
+            : child.name;
+
+        return SafeArea(
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 30),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [AppColors.pink, AppColors.yellow],
                     ),
-                    child: const Icon(
-                      Icons.emoji_emotions_rounded,
-                      color: AppColors.pink,
-                      size: 36,
+                    borderRadius: BorderRadius.vertical(
+                      bottom: Radius.circular(32),
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Hi, $userName! 👋',
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 60,
+                        height: 60,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
                         ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          'Let\'s learn, play, and have fun!',
-                          style: TextStyle(fontSize: 14, color: Colors.white),
+                        child: const Icon(
+                          Icons.emoji_emotions_rounded,
+                          color: AppColors.pink,
+                          size: 36,
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Hi, $displayName! 👋',
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${child.totalStars} stars earned so far',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: widget.onLogout,
+                        tooltip: 'Log out',
+                        icon: const Icon(
+                          Icons.logout_rounded,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    onPressed: onLogout,
-                    tooltip: 'Log out',
-                    icon: const Icon(Icons.logout_rounded, color: Colors.white),
+                ),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.all(20),
+                sliver: SliverGrid(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    mainAxisSpacing: 16,
+                    crossAxisSpacing: 16,
+                    childAspectRatio: 0.85,
                   ),
-                ],
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final feature = _features[index];
+                    return FeatureTile(
+                      feature: feature,
+                      onTap: () => _navigateToFeature(context, index),
+                    );
+                  }, childCount: _features.length),
+                ),
               ),
-            ),
+            ],
           ),
-          SliverPadding(
-            padding: const EdgeInsets.all(20),
-            sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                childAspectRatio: 0.85,
-              ),
-              delegate: SliverChildBuilderDelegate((context, index) {
-                final feature = _features[index];
-                return FeatureTile(
-                  feature: feature,
-                  onTap: () => _navigateToFeature(context, index),
-                );
-              }, childCount: _features.length),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

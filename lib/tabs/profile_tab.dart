@@ -1,10 +1,13 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../model/child.dart';
 import '../utils/app_colors.dart';
 import '../utils/feature_tile.dart';
 import '../utils/helpers.dart';
+import '../widgets/parental_gate.dart';
 
-/// Profile tab page - user settings and profile management
-class ProfileTab extends StatelessWidget {
+class ProfileTab extends StatefulWidget {
   const ProfileTab({super.key});
 
   static const List<FeatureItem> _items = [
@@ -23,37 +26,356 @@ class ProfileTab extends StatelessWidget {
   ];
 
   @override
+  State<ProfileTab> createState() => _ProfileTabState();
+}
+
+class _ProfileTabState extends State<ProfileTab> {
+  late Future<List<ChildModel>> _childrenFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _childrenFuture = _loadChildren();
+  }
+
+  Future<List<ChildModel>> _loadChildren() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return [];
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('children')
+          .orderBy('createdAt', descending: false)
+          .get();
+
+      return snapshot.docs.map(ChildModel.fromDoc).toList();
+    } catch (error) {
+      debugPrint('Failed to load children: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not load your children right now.'),
+          ),
+        );
+      }
+      return [];
+    }
+  }
+
+  Future<void> _handleTileTap(String label) async {
+    if (label == 'Account Settings') {
+      final allowed = await showParentalGate(context);
+      if (!mounted || !allowed) return;
+      showComingSoon(context, label);
+      return;
+    }
+
+    showComingSoon(context, label);
+  }
+
+  Future<void> _refreshChildren() async {
+    setState(() => _childrenFuture = _loadChildren());
+  }
+
+  @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
-            child: const Text(
-              'Profile 👤',
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w800,
-                color: AppColors.darkGray,
+      child: FutureBuilder<List<ChildModel>>(
+        future: _childrenFuture,
+        builder: (context, snapshot) {
+          final children = snapshot.data ?? [];
+
+          return ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              const Text(
+                'Profile 👤',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.darkGray,
+                ),
               ),
-            ),
-          ),
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              itemCount: _items.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final item = _items[index];
-                return FeatureListTile(
-                  item: item,
-                  onTap: () => showComingSoon(context, item.label),
-                );
-              },
-            ),
+              const SizedBox(height: 16),
+              if (children.isEmpty)
+                _EmptyChildrenCard()
+              else
+                ...children.map(
+                  (child) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _ChildCard(
+                      child: child,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => _ChildDetailPage(
+                              child: child,
+                              onSaved: _refreshChildren,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 8),
+              ...ProfileTab._items.map(
+                (item) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: FeatureListTile(
+                    item: item,
+                    onTap: () => _handleTileTap(item.label),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _EmptyChildrenCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
+      ),
+      child: const Text(
+        'No child profiles yet. Add one from the Family setup flow.',
+        style: TextStyle(
+          fontSize: 15,
+          color: AppColors.darkGray,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _ChildCard extends StatelessWidget {
+  final ChildModel child;
+  final VoidCallback onTap;
+
+  const _ChildCard({required this.child, required this.onTap});
+
+  IconData _avatarIcon(String avatarId) {
+    switch (avatarId) {
+      case 'star_1':
+        return Icons.star_rounded;
+      case 'cat_1':
+        return Icons.emoji_nature;
+      case 'rocket_1':
+        return Icons.rocket_launch_rounded;
+      default:
+        return Icons.pets;
+    }
+  }
+
+  Color _avatarColor(String avatarId) {
+    switch (avatarId) {
+      case 'star_1':
+        return AppColors.yellow;
+      case 'cat_1':
+        return AppColors.teal;
+      case 'rocket_1':
+        return AppColors.purple;
+      default:
+        return AppColors.pink;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final avatarColor = _avatarColor(child.avatarId);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: avatarColor.withOpacity(0.16),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(
+                _avatarIcon(child.avatarId),
+                color: avatarColor,
+                size: 28,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    child.name,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.darkGray,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${child.age} years old',
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ChildDetailPage extends StatefulWidget {
+  final ChildModel child;
+  final Future<void> Function() onSaved;
+
+  const _ChildDetailPage({required this.child, required this.onSaved});
+
+  @override
+  State<_ChildDetailPage> createState() => _ChildDetailPageState();
+}
+
+class _ChildDetailPageState extends State<_ChildDetailPage> {
+  late final TextEditingController _nameController;
+  late final TextEditingController _ageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.child.name);
+    _ageController = TextEditingController(text: widget.child.age.toString());
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _ageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveChild() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final trimmedName = _nameController.text.trim();
+    final ageValue = int.tryParse(_ageController.text.trim());
+
+    if (trimmedName.isEmpty || ageValue == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid name and age.')),
+      );
+      return;
+    }
+
+    final updatedChild = widget.child.copyWith(
+      name: trimmedName,
+      age: ageValue,
+    );
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('children')
+          .doc(updatedChild.childId)
+          .set(updatedChild.toMap(), SetOptions(merge: true));
+
+      if (!mounted) return;
+      await widget.onSaved();
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Child profile updated!')));
+    } catch (error) {
+      debugPrint('Failed to update child profile: $error');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save the child profile.')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Child Details'),
+        backgroundColor: AppColors.teal,
+        foregroundColor: Colors.white,
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Child Name',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _ageController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Age',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _saveChild,
+                icon: const Icon(Icons.save_rounded),
+                label: const Text('Save Changes'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.pink,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
