@@ -7,7 +7,6 @@ import '../model/child.dart';
 import '../model/result_model.dart';
 import '../utils/app_colors.dart';
 import '../utils/feature_tile.dart';
-import '../utils/helpers.dart';
 import '../widgets/parental_gate.dart';
 
 class ProgressTab extends StatefulWidget {
@@ -91,7 +90,61 @@ class _ProgressTabState extends State<ProgressTab> {
   Future<void> _handleCertificatesTap() async {
     final allowed = await showParentalGate(context);
     if (!mounted || !allowed) return;
-    showComingSoon(context, 'Certificates');
+    final childId = await _activeChildIdFuture;
+    if (!mounted || childId == null) return;
+
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('children')
+          .doc(childId)
+          .collection('results')
+          .where('score', isGreaterThanOrEqualTo: 3)
+          .limit(1)
+          .get();
+
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Learning certificates'),
+          content: snapshot.docs.isEmpty
+              ? const Text(
+                  'Complete a quiz with 3 or more correct answers to unlock your first certificate!',
+                )
+              : const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.workspace_premium_rounded,
+                      color: AppColors.yellow,
+                      size: 72,
+                    ),
+                    SizedBox(height: 12),
+                    Text(
+                      'Amazing work! Your first certificate is unlocked.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Keep learning'),
+            ),
+          ],
+        ),
+      );
+    } catch (error) {
+      debugPrint('Failed to load certificate status: $error');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not load certificates right now.')),
+      );
+    }
   }
 
   @override

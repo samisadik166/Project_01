@@ -3,12 +3,11 @@ import 'package:flutter/material.dart';
 import 'login_page.dart';
 import 'utils/app_colors.dart';
 import 'tabs/home_tab.dart';
-import 'tabs/learn_tab.dart';
 import 'tabs/play_tab.dart';
 import 'tabs/progress_tab.dart';
 import 'tabs/profile_tab.dart';
 
-// HOME PAGE — hosts the bottom navigation bar and switches between 5 tabs
+// HOME PAGE — hosts the bottom navigation bar and switches between 4 tabs
 
 class HomePage extends StatefulWidget {
   final String userName;
@@ -25,7 +24,6 @@ class _HomePageState extends State<HomePage> {
   // is just changing an index, no rebuilding widgets from scratch
   late final List<Widget> _pages = [
     HomeTab(userName: widget.userName, onLogout: _handleLogout),
-    const LearnTab(),
     const PlayTab(),
     const ProgressTab(),
     const ProfileTab(),
@@ -80,52 +78,121 @@ class _HomePageState extends State<HomePage> {
       // IndexedStack keeps every tab's state alive in the background
       // instead of destroying/rebuilding it every time you switch tabs
       body: IndexedStack(index: _selectedIndex, children: _pages),
-      bottomNavigationBar: Container(
+      bottomNavigationBar: _KidBottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: _onTabTapped,
+      ),
+    );
+  }
+}
+
+class _KidBottomNavigationBar extends StatelessWidget {
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+
+  const _KidBottomNavigationBar({
+    required this.currentIndex,
+    required this.onTap,
+  });
+
+  static const _items = [
+    (label: 'Home', icon: Icons.home_rounded, color: AppColors.pink),
+    (
+      label: 'Play',
+      icon: Icons.sports_esports_rounded,
+      color: AppColors.yellow,
+    ),
+    (
+      label: 'Progress',
+      icon: Icons.emoji_events_rounded,
+      color: AppColors.teal,
+    ),
+    (label: 'Profile', icon: Icons.person_rounded, color: AppColors.purple),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+      child: Container(
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFFFFFF), Color(0xFFFFF2F8)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 12,
-              offset: const Offset(0, -2),
+              color: AppColors.purple.withOpacity(0.18),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          child: BottomNavigationBar(
-            currentIndex: _selectedIndex,
-            onTap: _onTabTapped,
-            type: BottomNavigationBarType.fixed,
-            backgroundColor: Colors.white,
-            selectedItemColor: AppColors.pink,
-            unselectedItemColor: Colors.grey.shade400,
-            selectedLabelStyle: const TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
+        child: Row(
+          children: [
+            for (var index = 0; index < _items.length; index++)
+              Expanded(
+                child: _NavButton(
+                  item: _items[index],
+                  selected: currentIndex == index,
+                  onTap: () => onTap(index),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NavButton extends StatelessWidget {
+  final ({String label, IconData icon, Color color}) item;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _NavButton({
+    required this.item,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 3),
+      child: Material(
+        color: selected ? item.color : Colors.transparent,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(18),
+          child: SizedBox(
+            height: 64,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  item.icon,
+                  size: 27,
+                  color: selected ? Colors.white : item.color,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  item.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: selected ? Colors.white : AppColors.darkGray,
+                  ),
+                ),
+              ],
             ),
-            showUnselectedLabels: true,
-            items: const [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.home_rounded),
-                label: 'Home',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.menu_book_rounded),
-                label: 'Learn',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.sports_esports_rounded),
-                label: 'Play',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.emoji_events_rounded),
-                label: 'Progress',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.person_rounded),
-                label: 'Profile',
-              ),
-            ],
           ),
         ),
       ),

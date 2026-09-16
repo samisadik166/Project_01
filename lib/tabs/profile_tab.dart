@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import '../model/child.dart';
 import '../utils/app_colors.dart';
 import '../utils/feature_tile.dart';
-import '../utils/helpers.dart';
 import '../widgets/parental_gate.dart';
+import '../add_child_page.dart';
 
 class ProfileTab extends StatefulWidget {
   const ProfileTab({super.key});
@@ -65,14 +65,177 @@ class _ProfileTabState extends State<ProfileTab> {
   }
 
   Future<void> _handleTileTap(String label) async {
+    if (label == 'Child Profiles') {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => AddChildPage(
+            parentName:
+                FirebaseAuth.instance.currentUser?.displayName ?? 'Parent',
+          ),
+        ),
+      );
+      if (mounted) await _refreshChildren();
+      return;
+    }
     if (label == 'Account Settings') {
       final allowed = await showParentalGate(context);
       if (!mounted || !allowed) return;
-      showComingSoon(context, label);
+      await _showAccountSettings();
       return;
     }
 
-    showComingSoon(context, label);
+    if (label == 'Daily Reminders') {
+      await _showReminderSettings();
+      return;
+    }
+
+    await _showOfflineContent();
+  }
+
+  Future<void> _showAccountSettings() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || !mounted) return;
+    final parentRef = FirebaseFirestore.instance.collection('users').doc(uid);
+    final snapshot = await parentRef.get();
+    if (!mounted) return;
+    final controller = TextEditingController(
+      text: snapshot.data()?['name']?.toString() ?? '',
+    );
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Account settings'),
+        content: TextField(
+          controller: controller,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(labelText: 'Parent name'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (saved != true || !mounted) return;
+    await parentRef.set({
+      'name': controller.text.trim(),
+    }, SetOptions(merge: true));
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Account details saved.')));
+  }
+
+  Future<void> _showReminderSettings() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || !mounted) return;
+    final settingsRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('settings')
+        .doc('preferences');
+    final snapshot = await settingsRef.get();
+    if (!mounted) return;
+    var enabled = snapshot.data()?['remindersEnabled'] as bool? ?? true;
+    final timeController = TextEditingController(
+      text: snapshot.data()?['reminderTime']?.toString() ?? '09:00',
+    );
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Daily learning reminder'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Remind me to learn'),
+                value: enabled,
+                onChanged: (value) => setDialogState(() => enabled = value),
+              ),
+              TextField(
+                controller: timeController,
+                decoration: const InputDecoration(
+                  labelText: 'Time (for example 09:00)',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (saved != true || !mounted) return;
+    await settingsRef.set({
+      'remindersEnabled': enabled,
+      'reminderTime': timeController.text.trim(),
+    }, SetOptions(merge: true));
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Reminder settings saved.')));
+  }
+
+  Future<void> _showOfflineContent() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || !mounted) return;
+    final ref = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('settings')
+        .doc('preferences');
+    final snapshot = await ref.get();
+    if (!mounted) return;
+    var enabled = snapshot.data()?['offlineContentEnabled'] as bool? ?? false;
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Offline content'),
+          content: SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Keep learning content ready'),
+            subtitle: const Text(
+              'Recently opened lessons stay available without a connection.',
+            ),
+            value: enabled,
+            onChanged: (value) => setDialogState(() => enabled = value),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (saved != true || !mounted) return;
+    await ref.set({'offlineContentEnabled': enabled}, SetOptions(merge: true));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Offline content preference saved.')),
+    );
   }
 
   Future<void> _refreshChildren() async {

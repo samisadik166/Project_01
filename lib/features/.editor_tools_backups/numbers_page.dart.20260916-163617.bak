@@ -46,49 +46,27 @@ class _NumbersPageState extends State<NumbersPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Numbers'),
+        title: Text(_showTracing ? 'Number Writing' : 'Numbers & Counting'),
         backgroundColor: AppColors.yellow,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: Icon(_showTracing ? Icons.star : Icons.edit),
+            tooltip: _showTracing ? 'Switch to Counting' : 'Switch to Writing',
+            onPressed: _toggleMode,
+          ),
+        ],
       ),
       body: Container(
         color: AppColors.cream,
         width: double.infinity,
-        child: Column(
-          children: [
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _ModeSelector(
-                      label: 'Counting',
-                      icon: Icons.star,
-                      isSelected: !_showTracing,
-                      onTap: () => _toggleMode(),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _ModeSelector(
-                      label: 'Tracing',
-                      icon: Icons.edit,
-                      isSelected: _showTracing,
-                      onTap: () => _toggleMode(),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: _showTracing
-                  ? const SingleChildScrollView(
-                      padding: EdgeInsets.all(24),
-                      child: Center(child: NumberTracingWidget()),
-                    )
-                  : Padding(
-                      padding: const EdgeInsets.all(24),
+        child: _showTracing
+            ? const SingleChildScrollView(
+                padding: EdgeInsets.all(24),
+                child: Center(child: NumberTracingWidget()),
+              )
+            : Padding(
+                padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
                     const SizedBox(height: 16),
@@ -185,69 +163,6 @@ class _NumbersPageState extends State<NumbersPage> {
                   ],
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ModeSelector extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _ModeSelector({
-    required this.label,
-    required this.icon,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.yellow : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? AppColors.yellow : Colors.grey.shade300,
-            width: 2,
-          ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: AppColors.yellow.withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              color: isSelected ? AppColors.darkGray : Colors.grey.shade600,
-              size: 24,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: isSelected ? AppColors.darkGray : Colors.grey.shade600,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

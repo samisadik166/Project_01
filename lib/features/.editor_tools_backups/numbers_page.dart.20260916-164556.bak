@@ -185,9 +185,6 @@ class _NumbersPageState extends State<NumbersPage> {
                   ],
                 ),
               ),
-            ),
-          ],
-        ),
       ),
     );
   }

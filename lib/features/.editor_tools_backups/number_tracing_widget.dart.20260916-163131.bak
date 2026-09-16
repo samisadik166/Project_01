@@ -1,0 +1,390 @@
+import 'dart:ui';
+
+import 'package:flutter/material.dart';
+import '../utils/app_colors.dart';
+
+/// Interactive number tracing widget for kids to practice writing numbers
+class NumberTracingWidget extends StatefulWidget {
+  const NumberTracingWidget({super.key});
+
+  @override
+  State<NumberTracingWidget> createState() => _NumberTracingWidgetState();
+}
+
+class _NumberTracingWidgetState extends State<NumberTracingWidget>
+    with SingleTickerProviderStateMixin {
+  int _currentNumber = 0;
+  List<Offset> _userStrokes = [];
+  bool _isDrawing = false;
+  bool _isComplete = false;
+  late AnimationController _animationController;
+  late Animation<double> _animation;
+
+  // Simplified stroke paths for numbers 0-9
+  final Map<int, List<List<Offset>>> _numberPaths = {
+    0: [
+      [
+        const Offset(50, 20),
+        const Offset(70, 20),
+        const Offset(80, 50),
+        const Offset(70, 80),
+        const Offset(50, 80),
+        const Offset(30, 50),
+        const Offset(50, 20),
+      ]
+    ],
+    1: [
+      [
+        const Offset(50, 20),
+        const Offset(50, 80),
+      ]
+    ],
+    2: [
+      [
+        const Offset(30, 30),
+        const Offset(50, 20),
+        const Offset(70, 30),
+        const Offset(70, 50),
+        const Offset(30, 70),
+        const Offset(70, 80),
+      ]
+    ],
+    3: [
+      [
+        const Offset(30, 25),
+        const Offset(70, 25),
+        const Offset(50, 50),
+        const Offset(70, 75),
+        const Offset(30, 75),
+      ]
+    ],
+    4: [
+      [
+        const Offset(60, 20),
+        const Offset(60, 80),
+      ],
+      [
+        const Offset(60, 50),
+        const Offset(30, 80),
+        const Offset(80, 80),
+      ]
+    ],
+    5: [
+      [
+        const Offset(70, 20),
+        const Offset(30, 20),
+        const Offset(30, 50),
+        const Offset(50, 40),
+        const Offset(70, 50),
+        const Offset(70, 75),
+        const Offset(30, 75),
+      ]
+    ],
+    6: [
+      [
+        const Offset(70, 20),
+        const Offset(30, 20),
+        const Offset(30, 75),
+        const Offset(70, 75),
+        const Offset(70, 50),
+        const Offset(30, 50),
+      ]
+    ],
+    7: [
+      [
+        const Offset(30, 20),
+        const Offset(70, 20),
+        const Offset(50, 80),
+      ]
+    ],
+    8: [
+      [
+        const Offset(50, 20),
+        const Offset(30, 40),
+        const Offset(50, 50),
+        const Offset(70, 40),
+        const Offset(50, 20),
+      ],
+      [
+        const Offset(50, 50),
+        const Offset(30, 60),
+        const Offset(50, 80),
+        const Offset(70, 60),
+        const Offset(50, 50),
+      ]
+    ],
+    9: [
+      [
+        const Offset(70, 75),
+        const Offset(70, 20),
+        const Offset(30, 20),
+        const Offset(30, 50),
+        const Offset(70, 50),
+      ]
+    ],
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    );
+    _animation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    );
+    _playGuidelineAnimation();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  void _playGuidelineAnimation() {
+    _animationController.forward(from: 0.0);
+  }
+
+  void _nextNumber() {
+    setState(() {
+      _currentNumber = (_currentNumber + 1) % 10;
+      _userStrokes = [];
+      _isComplete = false;
+      _animationController.forward(from: 0.0);
+    });
+  }
+
+  void _clearStrokes() {
+    setState(() {
+      _userStrokes = [];
+      _isComplete = false;
+    });
+  }
+
+  void _checkCompletion() {
+    if (_userStrokes.length > 50) {
+      setState(() {
+        _isComplete = true;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Write the number $_currentNumber',
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: AppColors.darkGray,
+            ),
+          ),
+          const SizedBox(height: 16),
+          GestureDetector(
+            onPanStart: (details) {
+              setState(() {
+                _isDrawing = true;
+              });
+            },
+            onPanUpdate: (details) {
+              if (_isDrawing) {
+                setState(() {
+                  _userStrokes.add(details.localPosition);
+                });
+                _checkCompletion();
+              }
+            },
+            onPanEnd: (details) {
+              setState(() {
+                _isDrawing = false;
+              });
+            },
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.yellow, width: 3),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: CustomPaint(
+                size: const Size(300, 300),
+                painter: _NumberPainter(
+                  number: _currentNumber,
+                  numberPaths: _numberPaths[_currentNumber]!,
+                  userStrokes: _userStrokes,
+                  animationValue: _animation.value,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              ElevatedButton.icon(
+                onPressed: _clearStrokes,
+                icon: const Icon(Icons.clear),
+                label: const Text('Clear'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: _nextNumber,
+                icon: const Icon(Icons.arrow_forward),
+                label: const Text('Next'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.yellow,
+                  foregroundColor: AppColors.darkGray,
+                ),
+              ),
+            ],
+          ),
+          if (_isComplete)
+            const Padding(
+              padding: EdgeInsets.only(top: 12),
+              child: Text(
+                '🎉 Great job!',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NumberPainter extends CustomPainter {
+  final int number;
+  final List<List<Offset>> numberPaths;
+  final List<Offset> userStrokes;
+  final double animationValue;
+
+  _NumberPainter({
+    required this.number,
+    required this.numberPaths,
+    required this.userStrokes,
+    required this.animationValue,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Draw number outline (dotted guide)
+    final outlinePaint = Paint()
+      ..color = AppColors.yellow.withValues(alpha: 0.3)
+      ..strokeWidth = 8.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    // Draw the large number in the background
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: number.toString(),
+        style: TextStyle(
+          fontSize: 200,
+          fontWeight: FontWeight.bold,
+          color: AppColors.yellow.withValues(alpha: 0.15),
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+    textPainter.layout();
+    textPainter.paint(
+      canvas,
+      Offset(
+        (size.width - textPainter.width) / 2,
+        (size.height - textPainter.height) / 2,
+      ),
+    );
+
+    // Draw animated guideline
+    final guidelinePaint = Paint()
+      ..color = AppColors.yellow
+      ..strokeWidth = 6.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    for (var path in numberPaths) {
+      if (path.length < 2) continue;
+
+      // Calculate how much of the path to draw based on animation
+      final totalPoints = path.length;
+      final pointsToDraw = (totalPoints * animationValue).toInt();
+
+      if (pointsToDraw >= 2) {
+        final pathToDraw = Path();
+        pathToDraw.moveTo(path[0].dx, path[0].dy);
+
+        for (var i = 1; i < pointsToDraw; i++) {
+          pathToDraw.lineTo(path[i].dx, path[i].dy);
+        }
+
+        // Draw the animated path
+        canvas.drawPath(pathToDraw, guidelinePaint);
+
+        // Draw a dot at the current animation position
+        if (animationValue < 1.0 && pointsToDraw > 0) {
+          final dotPaint = Paint()
+            ..color = Colors.orange
+            ..style = PaintingStyle.fill;
+          canvas.drawCircle(path[pointsToDraw - 1], 8, dotPaint);
+        }
+      }
+    }
+
+    // Draw user strokes
+    if (userStrokes.isNotEmpty) {
+      final userPaint = Paint()
+        ..color = Colors.blue
+        ..strokeWidth = 8.0
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+
+      final path = Path();
+      path.moveTo(userStrokes[0].dx, userStrokes[0].dy);
+
+      for (var i = 1; i < userStrokes.length; i++) {
+        path.lineTo(userStrokes[i].dx, userStrokes[i].dy);
+      }
+
+      canvas.drawPath(path, userPaint);
+    }
+
+    // Draw start position indicator
+    if (numberPaths.isNotEmpty && numberPaths[0].isNotEmpty) {
+      final startPaint = Paint()
+        ..color = Colors.green
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(numberPaths[0][0], 10, startPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
