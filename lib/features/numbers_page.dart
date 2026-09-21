@@ -36,14 +36,115 @@ class _NumbersPageState extends State<NumbersPage> {
     });
   }
 
-  void _toggleMode() {
-    setState(() {
-      _showTracing = !_showTracing;
-    });
+  void _setMode(bool showTracing) {
+    setState(() => _showTracing = showTracing);
   }
 
   @override
   Widget build(BuildContext context) {
+    final content = _showTracing
+        ? const NumberTracingWidget()
+        : SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: double.infinity),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Count the stars!',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.darkGray,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Tap $_target stars',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      color: AppColors.darkGray,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      '$_selected / $_target',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.yellow,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Center(
+                    child: Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: List.generate(
+                        _target,
+                        (index) => _StarButton(
+                          key: ValueKey('star-$index'),
+                          isSelected: index < _selected,
+                          onTap: _tapStar,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    height: 56,
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _isComplete ? _newRound : null,
+                      icon: Icon(_isComplete ? Icons.refresh : Icons.star),
+                      label: Text(_isComplete ? 'Play Again' : 'Keep Counting'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.yellow,
+                        foregroundColor: AppColors.darkGray,
+                        disabledBackgroundColor: AppColors.yellow.withValues(
+                          alpha: 0.45,
+                        ),
+                        disabledForegroundColor: AppColors.darkGray.withValues(
+                          alpha: 0.6,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 32,
+                    child: Text(
+                      _isComplete
+                          ? 'Great counting!'
+                          : 'Choose a star to begin',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: _isComplete ? Colors.green : Colors.grey[700],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Numbers'),
@@ -53,155 +154,59 @@ class _NumbersPageState extends State<NumbersPage> {
       body: Container(
         color: AppColors.cream,
         width: double.infinity,
-        child: Column(
-          children: [
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _ModeSelector(
-                      label: 'Counting',
-                      icon: Icons.star,
-                      isSelected: !_showTracing,
-                      onTap: () => _toggleMode(),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _ModeSelector(
-                      label: 'Tracing',
-                      icon: Icons.edit,
-                      isSelected: _showTracing,
-                      onTap: () => _toggleMode(),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: _showTracing
-                  ? const SingleChildScrollView(
-                      padding: EdgeInsets.all(24),
-                      child: Center(child: NumberTracingWidget()),
-                    )
-                  : Padding(
-                      padding: const EdgeInsets.all(24),
-                child: Column(
+        child: SafeArea(
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
                   children: [
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Count the stars!',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.darkGray,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Tap $_target stars',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        color: AppColors.darkGray,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Text(
-                        '$_selected / $_target',
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.yellow,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
                     Expanded(
-                      child: Center(
-                        child: Wrap(
-                          alignment: WrapAlignment.center,
-                          spacing: 12,
-                          runSpacing: 12,
-                          children: List.generate(
-                            _target,
-                            (index) => _StarButton(
-                              key: ValueKey('star-$index'),
-                              isSelected: index < _selected,
-                              onTap: _tapStar,
-                            ),
-                          ),
-                        ),
+                      child: _ModeCard(
+                        label: 'Counting',
+                        icon: Icons.star_rounded,
+                        color: AppColors.yellow,
+                        isSelected: !_showTracing,
+                        onTap: () => _setMode(false),
                       ),
                     ),
-                    SizedBox(
-                      height: 56,
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _isComplete ? _newRound : null,
-                        icon: Icon(_isComplete ? Icons.refresh : Icons.star),
-                        label: Text(
-                          _isComplete ? 'Play Again' : 'Keep Counting',
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.yellow,
-                          foregroundColor: AppColors.darkGray,
-                          disabledBackgroundColor: AppColors.yellow.withValues(
-                            alpha: 0.45,
-                          ),
-                          disabledForegroundColor: AppColors.darkGray
-                              .withValues(alpha: 0.6),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      height: 32,
-                      child: Text(
-                        _isComplete
-                            ? 'Great counting!'
-                            : 'Choose a star to begin',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: _isComplete ? Colors.green : Colors.grey[700],
-                        ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _ModeCard(
+                        label: 'Number Tracing',
+                        icon: Icons.edit_rounded,
+                        color: AppColors.teal,
+                        isSelected: _showTracing,
+                        onTap: () => _setMode(true),
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              Expanded(child: content),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _ModeSelector extends StatelessWidget {
+/// Big square-ish rounded mode card — used for the Counting / Number Tracing
+/// selector at the top of the page.
+class _ModeCard extends StatelessWidget {
   final String label;
   final IconData icon;
+  final Color color;
   final bool isSelected;
   final VoidCallback onTap;
 
-  const _ModeSelector({
+  const _ModeCard({
     required this.label,
     required this.icon,
+    required this.color,
     required this.isSelected,
     required this.onTap,
   });
@@ -210,40 +215,39 @@ class _ModeSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        height: 110,
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.yellow : Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          color: isSelected ? color : Colors.white,
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? AppColors.yellow : Colors.grey.shade300,
+            color: isSelected ? color : Colors.grey.shade300,
             width: 2,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: AppColors.yellow.withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+                    color: color.withOpacity(0.35),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
                   ),
                 ]
-              : null,
+              : [],
         ),
-        child: Row(
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: isSelected ? AppColors.darkGray : Colors.grey.shade600,
-              size: 24,
-            ),
-            const SizedBox(width: 8),
+            Icon(icon, size: 34, color: isSelected ? Colors.white : color),
+            const SizedBox(height: 8),
             Text(
               label,
+              textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: isSelected ? AppColors.darkGray : Colors.grey.shade600,
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: isSelected ? Colors.white : AppColors.darkGray,
               ),
             ),
           ],

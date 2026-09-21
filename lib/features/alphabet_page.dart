@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../utils/app_colors.dart';
+import '../utils/reward_service.dart';
 
 /// Letter tracing page — kid draws each letter stroke by stroke, guided by
 /// dotted paths and a mascot that demonstrates before they try.
@@ -362,7 +363,12 @@ class _AlphabetPageState extends State<AlphabetPage> {
                       setState(() => _currentIndex = index),
                   itemBuilder: (context, index) => _TracingCard(
                     data: _allLetters[index],
-                    onComplete: () {
+                    onComplete: () async {
+                      await RewardService.awardTaskStarsForCurrentChild(
+                        taskType: 'alphabet',
+                        taskId: _allLetters[index].letter,
+                      );
+
                       if (index < _allLetters.length - 1) {
                         Future.delayed(
                           const Duration(milliseconds: 1200),
@@ -456,7 +462,7 @@ class _LetterButton extends StatelessWidget {
 // ---------------------------------------------------------------------------
 class _TracingCard extends StatefulWidget {
   final TracingLetterData data;
-  final VoidCallback onComplete;
+  final Future<void> Function() onComplete;
 
   const _TracingCard({required this.data, required this.onComplete});
 
@@ -583,7 +589,7 @@ class _TracingCardState extends State<_TracingCard>
         }
       });
       if (isLastStroke) {
-        widget.onComplete();
+        await widget.onComplete();
       } else {
         await _playDemo();
       }

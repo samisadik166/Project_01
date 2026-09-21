@@ -76,6 +76,12 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
+  Future<void> _refreshActiveChild() async {
+    setState(() {
+      _activeChildFuture = _loadActiveChild();
+    });
+  }
+
   static const List<FeatureItem> _features = [
     FeatureItem('Alphabet', Icons.abc_rounded, AppColors.pink),
     FeatureItem('Numbers', Icons.pin_rounded, AppColors.yellow),
@@ -95,7 +101,7 @@ class _HomeTabState extends State<HomeTab> {
     ),
   ];
 
-  void _navigateToFeature(BuildContext context, int index) {
+  Future<void> _navigateToFeature(BuildContext context, int index) async {
     final routes = [
       MaterialPageRoute(builder: (_) => const AlphabetPage()),
       MaterialPageRoute(builder: (_) => const NumbersPage()),
@@ -110,7 +116,37 @@ class _HomeTabState extends State<HomeTab> {
       MaterialPageRoute(builder: (_) => const RewardsPage()),
       MaterialPageRoute(builder: (_) => const DailyRemindersPage()),
     ];
-    Navigator.of(context).push(routes[index]);
+
+    await Navigator.of(context).push(routes[index]);
+    await _refreshActiveChild();
+  }
+
+  IconData _avatarIcon(String avatarId) {
+    switch (avatarId) {
+      case 'star_1':
+        return Icons.star_rounded;
+      case 'cat_1':
+        return Icons.emoji_nature_rounded;
+      case 'rocket_1':
+        return Icons.rocket_launch_rounded;
+      case 'bear_1':
+      default:
+        return Icons.pets_rounded;
+    }
+  }
+
+  Color _avatarColor(String avatarId) {
+    switch (avatarId) {
+      case 'star_1':
+        return AppColors.yellow;
+      case 'cat_1':
+        return AppColors.teal;
+      case 'rocket_1':
+        return AppColors.purple;
+      case 'bear_1':
+      default:
+        return AppColors.pink;
+    }
   }
 
   @override
@@ -132,6 +168,7 @@ class _HomeTabState extends State<HomeTab> {
         final displayName = child.name.trim().isEmpty
             ? widget.userName
             : child.name;
+        final avatarColor = _avatarColor(child.avatarId);
 
         return SafeArea(
           child: CustomScrollView(
@@ -140,29 +177,48 @@ class _HomeTabState extends State<HomeTab> {
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(24, 20, 24, 30),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [AppColors.pink, AppColors.yellow],
+                      colors: [
+                        AppColors.yellow.withOpacity(0.92),
+                        AppColors.pink.withOpacity(0.78),
+                        AppColors.teal.withOpacity(0.7),
+                      ],
                     ),
-                    borderRadius: BorderRadius.vertical(
+                    borderRadius: const BorderRadius.vertical(
                       bottom: Radius.circular(32),
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.purple.withOpacity(0.12),
+                        blurRadius: 12,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
                   ),
                   child: Row(
                     children: [
                       Container(
-                        width: 60,
-                        height: 60,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
+                        width: 62,
+                        height: 62,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.92),
                           shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 3),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
-                        child: const Icon(
-                          Icons.emoji_emotions_rounded,
-                          color: AppColors.pink,
-                          size: 36,
+                        child: Icon(
+                          _avatarIcon(child.avatarId),
+                          color: avatarColor,
+                          size: 32,
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -178,12 +234,34 @@ class _HomeTabState extends State<HomeTab> {
                                 color: Colors.white,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${child.totalStars} stars earned so far',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Colors.white,
+                            const SizedBox(height: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.star_rounded,
+                                    color: Colors.amber,
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '${child.totalStars} stars',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -214,7 +292,7 @@ class _HomeTabState extends State<HomeTab> {
                     final feature = _features[index];
                     return FeatureTile(
                       feature: feature,
-                      onTap: () => _navigateToFeature(context, index),
+                      onTap: () async => _navigateToFeature(context, index),
                     );
                   }, childCount: _features.length),
                 ),

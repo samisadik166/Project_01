@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../utils/app_colors.dart';
+import '../utils/reward_service.dart';
 
 /// Interactive number tracing experience for kids — same engine as the
 /// alphabet tracing page: dotted stroke guides, a mascot that demonstrates
@@ -166,98 +167,125 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Jump-to-digit strip
-        SizedBox(
-          height: 50,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            itemCount: _allNumbers.length,
-            itemBuilder: (context, index) {
-              final isSelected = index == _currentIndex;
-              return GestureDetector(
-                onTap: () => _goTo(index),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: isSelected ? 42 : 34,
-                  height: isSelected ? 42 : 34,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: isSelected ? _allNumbers[index].color : Colors.white,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: _allNumbers[index].color,
-                      width: 2,
-                    ),
-                    boxShadow: isSelected
-                        ? [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.12),
-                              blurRadius: 6,
-                              offset: const Offset(0, 3),
-                            ),
-                          ]
-                        : [],
-                  ),
-                  child: Text(
-                    _allNumbers[index].digit,
-                    style: TextStyle(
-                      fontSize: isSelected ? 18 : 14,
-                      fontWeight: FontWeight.w800,
-                      color: isSelected
-                          ? Colors.white
-                          : _allNumbers[index].color,
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 8),
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+    final pageHeight = isLandscape ? 220.0 : 560.0;
+    final canvasSize = isLandscape ? 170.0 : 260.0;
 
-        SizedBox(
-          height: 560,
-          child: PageView.builder(
-            controller: _pageController,
-            itemCount: _allNumbers.length,
-            physics: const NeverScrollableScrollPhysics(),
-            onPageChanged: (index) => setState(() => _currentIndex = index),
-            itemBuilder: (context, index) =>
-                _NumberTracingCard(data: _allNumbers[index]),
-          ),
-        ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableHeight = constraints.maxHeight.isFinite
+            ? constraints.maxHeight
+            : 600.0;
+        final safePageHeight = isLandscape
+            ? (availableHeight * 0.58).clamp(180.0, 220.0)
+            : pageHeight;
 
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
             children: [
-              _NavButton(
-                icon: Icons.arrow_back_rounded,
-                enabled: _currentIndex > 0,
-                onTap: () => _goTo(_currentIndex - 1),
-              ),
-              Text(
-                '${_currentIndex + 1} / ${_allNumbers.length}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.darkGray,
-                  fontSize: 14,
+              SizedBox(
+                height: 50,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
+                  ),
+                  itemCount: _allNumbers.length,
+                  itemBuilder: (context, index) {
+                    final isSelected = index == _currentIndex;
+                    return GestureDetector(
+                      onTap: () => _goTo(index),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: isSelected ? 42 : 34,
+                        height: isSelected ? 42 : 34,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? _allNumbers[index].color
+                              : Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: _allNumbers[index].color,
+                            width: 2,
+                          ),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.12),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ]
+                              : [],
+                        ),
+                        child: Text(
+                          _allNumbers[index].digit,
+                          style: TextStyle(
+                            fontSize: isSelected ? 18 : 14,
+                            fontWeight: FontWeight.w800,
+                            color: isSelected
+                                ? Colors.white
+                                : _allNumbers[index].color,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
-              _NavButton(
-                icon: Icons.arrow_forward_rounded,
-                enabled: _currentIndex < _allNumbers.length - 1,
-                onTap: () => _goTo(_currentIndex + 1),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: safePageHeight,
+                child: PageView.builder(
+                  controller: _pageController,
+                  itemCount: _allNumbers.length,
+                  physics: const NeverScrollableScrollPhysics(),
+                  onPageChanged: (index) =>
+                      setState(() => _currentIndex = index),
+                  itemBuilder: (context, index) => _NumberTracingCard(
+                    data: _allNumbers[index],
+                    canvasSize: canvasSize,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _NavButton(
+                      icon: Icons.arrow_back_rounded,
+                      enabled: _currentIndex > 0,
+                      onTap: () => _goTo(_currentIndex - 1),
+                    ),
+                    Text(
+                      '${_currentIndex + 1} / ${_allNumbers.length}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.darkGray,
+                        fontSize: 14,
+                      ),
+                    ),
+                    _NavButton(
+                      icon: Icons.arrow_forward_rounded,
+                      enabled: _currentIndex < _allNumbers.length - 1,
+                      onTap: () => _goTo(_currentIndex + 1),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
-        ),
-      ],
+        );
+      },
     );
   }
 }
@@ -267,7 +295,9 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
 // ---------------------------------------------------------------------------
 class _NumberTracingCard extends StatefulWidget {
   final TracingNumberData data;
-  const _NumberTracingCard({required this.data});
+  final double canvasSize;
+
+  const _NumberTracingCard({required this.data, this.canvasSize = 260});
 
   @override
   State<_NumberTracingCard> createState() => _NumberTracingCardState();
@@ -282,6 +312,7 @@ class _NumberTracingCardState extends State<_NumberTracingCard>
   bool _celebrating = false;
 
   late final AnimationController _demoController;
+  bool _rewardGranted = false;
 
   @override
   void initState() {
@@ -304,6 +335,7 @@ class _NumberTracingCardState extends State<_NumberTracingCard>
     _completedStrokes.clear();
     _drawnPoints = [];
     _celebrating = false;
+    _rewardGranted = false;
     _mascotMessage = "Watch me first, then trace stroke 1! 🐻";
     WidgetsBinding.instance.addPostFrameCallback((_) => _playDemo());
   }
@@ -322,9 +354,9 @@ class _NumberTracingCardState extends State<_NumberTracingCard>
   Path _buildScaledPath(List<Offset> normPoints) {
     final path = Path();
     final first = normPoints.first;
-    path.moveTo(first.dx * kNumCanvasSize, first.dy * kNumCanvasSize);
+    path.moveTo(first.dx * widget.canvasSize, first.dy * widget.canvasSize);
     for (final p in normPoints.skip(1)) {
-      path.lineTo(p.dx * kNumCanvasSize, p.dy * kNumCanvasSize);
+      path.lineTo(p.dx * widget.canvasSize, p.dy * widget.canvasSize);
     }
     return path;
   }
@@ -347,7 +379,7 @@ class _NumberTracingCardState extends State<_NumberTracingCard>
     final guidePath = _buildScaledPath(widget.data.strokes[_activeStroke]);
     final samples = _sampleAlongPath(guidePath, 18);
     if (samples.isEmpty) return false;
-    const tolerance = kNumCanvasSize * 0.16;
+    final tolerance = widget.canvasSize * 0.16;
     int covered = 0;
     for (final gp in samples) {
       final hit = _drawnPoints.any((dp) => (dp - gp).distance < tolerance);
@@ -387,6 +419,13 @@ class _NumberTracingCardState extends State<_NumberTracingCard>
               "Great job! ⭐ Now watch stroke ${_activeStroke + 1}.";
         }
       });
+      if (isLastStroke && !_rewardGranted) {
+        _rewardGranted = true;
+        await RewardService.awardTaskStarsForCurrentChild(
+          taskType: 'number',
+          taskId: widget.data.digit,
+        );
+      }
       if (!isLastStroke) await _playDemo();
     } else {
       setState(() {
@@ -398,129 +437,143 @@ class _NumberTracingCardState extends State<_NumberTracingCard>
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      physics: const NeverScrollableScrollPhysics(),
-      child: Column(
-        children: [
-          const SizedBox(height: 4),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : 900.0;
+        final canvasSize = widget.canvasSize
+            .clamp(110.0, maxWidth * 0.42)
+            .toDouble();
+
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 4),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        const Text('🐻', style: TextStyle(fontSize: 32)),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _mascotMessage,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.darkGray,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  const Text('🐻', style: TextStyle(fontSize: 32)),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      _mascotMessage,
-                      style: const TextStyle(
-                        fontSize: 13,
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  widget.data.digit,
+                  style: TextStyle(
+                    fontSize: 36,
+                    fontWeight: FontWeight.w900,
+                    color: widget.data.color,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                GestureDetector(
+                  onPanStart: _onPanStart,
+                  onPanUpdate: _onPanUpdate,
+                  onPanEnd: _onPanEnd,
+                  child: Container(
+                    width: canvasSize,
+                    height: canvasSize,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: widget.data.color.withOpacity(0.3),
+                        width: 2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 12,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: AnimatedBuilder(
+                      animation: _demoController,
+                      builder: (context, _) {
+                        return CustomPaint(
+                          painter: _NumberTracingPainter(
+                            data: widget.data,
+                            activeStroke: _activeStroke,
+                            completedStrokes: _completedStrokes,
+                            drawnPoints: _drawnPoints,
+                            demoProgress: _demoController.value,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    for (int i = 0; i < widget.data.strokes.length; i++)
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _completedStrokes.contains(i)
+                              ? widget.data.color
+                              : widget.data.color.withOpacity(0.25),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                if (!_celebrating)
+                  TextButton.icon(
+                    onPressed: _playDemo,
+                    icon: Icon(
+                      Icons.visibility_rounded,
+                      color: widget.data.color,
+                    ),
+                    label: Text(
+                      'Show Me Again',
+                      style: TextStyle(
+                        color: widget.data.color,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.darkGray,
                       ),
                     ),
                   ),
-                ],
-              ),
+              ],
             ),
           ),
-          const SizedBox(height: 14),
-
-          Text(
-            widget.data.digit,
-            style: TextStyle(
-              fontSize: 36,
-              fontWeight: FontWeight.w900,
-              color: widget.data.color,
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          GestureDetector(
-            onPanStart: _onPanStart,
-            onPanUpdate: _onPanUpdate,
-            onPanEnd: _onPanEnd,
-            child: Container(
-              width: kNumCanvasSize,
-              height: kNumCanvasSize,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: widget.data.color.withOpacity(0.3),
-                  width: 2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: AnimatedBuilder(
-                animation: _demoController,
-                builder: (context, _) {
-                  return CustomPaint(
-                    painter: _NumberTracingPainter(
-                      data: widget.data,
-                      activeStroke: _activeStroke,
-                      completedStrokes: _completedStrokes,
-                      drawnPoints: _drawnPoints,
-                      demoProgress: _demoController.value,
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              for (int i = 0; i < widget.data.strokes.length; i++)
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _completedStrokes.contains(i)
-                        ? widget.data.color
-                        : widget.data.color.withOpacity(0.25),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 10),
-
-          if (!_celebrating)
-            TextButton.icon(
-              onPressed: _playDemo,
-              icon: Icon(Icons.visibility_rounded, color: widget.data.color),
-              label: Text(
-                'Show Me Again',
-                style: TextStyle(
-                  color: widget.data.color,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

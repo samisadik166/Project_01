@@ -7,6 +7,7 @@ import 'firebase_options.dart';
 import 'home_page.dart';
 import 'login_page.dart';
 import 'theme.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,6 +15,14 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    try {
+      await GoogleSignIn.instance.initialize(
+        serverClientId:
+            '291660774638-9bgabmmcosarfrbei4okormh5ijm24lq.apps.googleusercontent.com',
+      );
+    } catch (e) {
+      debugPrint('Google Sign-In init failed: $e');
+    }
     debugPrint('Firebase initialized: ${Firebase.app().options.projectId}');
   } catch (error, stackTrace) {
     debugPrint('Firebase initialization failed: $error');

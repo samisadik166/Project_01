@@ -60,11 +60,138 @@ class _QuizzesPageState extends State<QuizzesPage> {
         grouped.putIfAbsent(quiz.category, () => <QuizModel>[]).add(quiz);
       }
 
+      if (grouped.isEmpty) {
+        final fallback = _buildFallbackQuizzesForAge(childAge);
+        for (final quiz in fallback) {
+          grouped.putIfAbsent(quiz.category, () => <QuizModel>[]).add(quiz);
+        }
+      }
+
       return _QuizPageData(age: childAge, groupedQuizzes: grouped);
     } catch (error) {
       debugPrint('Failed to load quizzes: $error');
-      return _QuizPageData(age: childAge, groupedQuizzes: const {});
+      final fallback = _buildFallbackQuizzesForAge(childAge);
+      final grouped = <String, List<QuizModel>>{};
+      for (final quiz in fallback) {
+        grouped.putIfAbsent(quiz.category, () => <QuizModel>[]).add(quiz);
+      }
+      return _QuizPageData(age: childAge, groupedQuizzes: grouped);
     }
+  }
+
+  List<QuizModel> _buildFallbackQuizzesForAge(int childAge) {
+    final adjustedAge = childAge < 3 ? 3 : childAge;
+    final maxAge = adjustedAge > 6 ? 6 : adjustedAge;
+
+    final quizList = <QuizModel>[
+      QuizModel(
+        quizId: 'little_kids_shapes',
+        title: 'Shape Match',
+        category: 'Math',
+        ageRange: [3, 6],
+        difficulty: 'easy',
+        iconUrl: '',
+        isActive: true,
+        questions: [
+          QuestionModel(
+            questionText: 'Which shape looks like a ball?',
+            type: 'multiple_choice',
+            options: ['Circle', 'Square', 'Triangle'],
+            correctIndex: 0,
+            order: 1,
+          ),
+          QuestionModel(
+            questionText: 'How many sides does a square have?',
+            type: 'multiple_choice',
+            options: ['1', '2', '4'],
+            correctIndex: 2,
+            order: 2,
+          ),
+        ],
+      ),
+      QuizModel(
+        quizId: 'little_kids_counting',
+        title: 'Count the Stars',
+        category: 'Math',
+        ageRange: [3, 6],
+        difficulty: 'easy',
+        iconUrl: '',
+        isActive: true,
+        questions: [
+          QuestionModel(
+            questionText: 'What number comes after 4?',
+            type: 'multiple_choice',
+            options: ['3', '5', '6'],
+            correctIndex: 1,
+            order: 1,
+          ),
+          QuestionModel(
+            questionText: 'Which group has 3 stars?',
+            type: 'multiple_choice',
+            options: ['★ ★', '★ ★ ★', '★ ★ ★ ★ ★'],
+            correctIndex: 1,
+            order: 2,
+          ),
+        ],
+      ),
+      QuizModel(
+        quizId: 'little_kids_colors',
+        title: 'Color Fun',
+        category: 'Science',
+        ageRange: [3, 6],
+        difficulty: 'easy',
+        iconUrl: '',
+        isActive: true,
+        questions: [
+          QuestionModel(
+            questionText: 'Which color is the sky on a sunny day?',
+            type: 'multiple_choice',
+            options: ['Red', 'Blue', 'Green'],
+            correctIndex: 1,
+            order: 1,
+          ),
+          QuestionModel(
+            questionText: 'Which fruit is usually yellow?',
+            type: 'multiple_choice',
+            options: ['Banana', 'Apple', 'Grapes'],
+            correctIndex: 0,
+            order: 2,
+          ),
+        ],
+      ),
+    ];
+
+    if (maxAge >= 5) {
+      quizList.add(
+        QuizModel(
+          quizId: 'little_kids_letters',
+          title: 'Letter Friends',
+          category: 'Reading',
+          ageRange: [4, 6],
+          difficulty: 'easy',
+          iconUrl: '',
+          isActive: true,
+          questions: [
+            QuestionModel(
+              questionText: 'Which letter comes first in the alphabet?',
+              type: 'multiple_choice',
+              options: ['B', 'A', 'C'],
+              correctIndex: 1,
+              order: 1,
+            ),
+            QuestionModel(
+              questionText: 'Which word starts with M?',
+              type: 'multiple_choice',
+              options: ['Sun', 'Moon', 'Tree'],
+              correctIndex: 1,
+              order: 2,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return quizList;
   }
 
   @override

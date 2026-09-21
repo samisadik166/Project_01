@@ -1,9 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'add_child_page.dart';
 import 'home_page.dart';
 import 'sign_up_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'model/parent.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 // LOGIN PAGE — for returning parents/teachers who already have an account
 
@@ -35,6 +38,27 @@ class _LoginPageState extends State<LoginPage> {
       email: _emailController.text.trim(),
       password: _passwordController.text.trim(),
     );
+  }
+
+  Future<UserCredential> _signInWithGoogle() async {
+    try {
+      final googleUser = await GoogleSignIn.instance.authenticate();
+      final idToken = googleUser.authentication.idToken;
+
+      final credential = GoogleAuthProvider.credential(idToken: idToken);
+      return await FirebaseAuth.instance.signInWithCredential(credential);
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        throw FirebaseAuthException(
+          code: 'sign_in_canceled',
+          message: 'Google sign-in was cancelled.',
+        );
+      }
+      throw FirebaseAuthException(
+        code: 'google_sign_in_failed',
+        message: e.toString(),
+      );
+    }
   }
 
   Future<String> _loadHomeDisplayName(String uid) async {
@@ -103,6 +127,88 @@ class _LoginPageState extends State<LoginPage> {
         message = 'Too many attempts. Please wait a moment and try again.';
       } else if (e.code == 'network-request-failed') {
         message = 'No internet connection. Please check your network.';
+      } else if (e.code == 'sign_in_canceled') {
+        message = 'Google sign-in was cancelled.';
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: const Color(0xFFFF6B9D),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final userCredential = await _signInWithGoogle();
+      final user = userCredential.user;
+      if (user == null) return;
+
+      final uid = user.uid;
+      final displayName = (user.displayName ?? 'Parent').trim();
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      if (!userDoc.exists) {
+        final parent = ParentModel(
+          uid: uid,
+          name: displayName.isNotEmpty ? displayName : 'Parent',
+          email: user.email ?? '',
+          role: 'Parent',
+          createdAt: DateTime.now(),
+        );
+
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .set(parent.toMap());
+      }
+
+      if (mounted) {
+        final name = await _loadHomeDisplayName(uid);
+        if (!mounted) return;
+
+        final isExistingProfile =
+            userDoc.exists ||
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(uid)
+                .get()
+                .then((doc) => doc.exists);
+
+        if (!mounted) return;
+
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => isExistingProfile
+                ? HomePage(userName: name)
+                : AddChildPage(
+                    parentName: displayName.isNotEmpty ? displayName : 'Parent',
+                  ),
+          ),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      String message = 'Google sign-in failed. Please try again.';
+      if (e.code == 'account-exists-with-different-credential') {
+        message = 'An account already exists with that Google sign-in.';
+      } else if (e.code == 'network-request-failed') {
+        message = 'No internet connection. Please check your network.';
+      } else if (e.code == 'sign_in_canceled') {
+        message = 'Google sign-in was cancelled.';
       }
 
       if (!mounted) return;
@@ -252,6 +358,38 @@ class _LoginPageState extends State<LoginPage> {
                                 color: Colors.white,
                               ),
                             ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: OutlinedButton.icon(
+                      onPressed: _isLoading ? null : _handleGoogleSignIn,
+                      icon: const Icon(
+                        Icons.g_mobiledata_rounded,
+                        color: Color(0xFF4EE0C1),
+                      ),
+                      label: const Text(
+                        'Continue with Google',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF3A3A3A),
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        side: const BorderSide(
+                          color: Color(0xFF4EE0C1),
+                          width: 1.5,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 20),

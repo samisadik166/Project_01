@@ -12,7 +12,20 @@
           "package_name": "com.example.preschool_learning_app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "291660774638-mocs81url5r7rbklvi71hl38d7dn87gg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.preschool_learning_app",
+            "certificate_hash": "e4b75606891fa56e5eac68110a21107e43460691"
+          }
+        },
+        {
+          "client_id": "291660774638-9bgabmmcosarfrbei4okormh5ijm24lq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyC4tuhxLEPOnxozEKlGK6s1F7tRkfXi-jI"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "291660774638-9bgabmmcosarfrbei4okormh5ijm24lq.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "291660774638-k2624878n8ba7ntudho60l42in322pgg.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.preschoolLearningApp"
+              }
+            }
+          ]
         }
       }
     }

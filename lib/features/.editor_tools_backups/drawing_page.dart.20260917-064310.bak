@@ -159,7 +159,7 @@ class _DrawingPageState extends State<DrawingPage> {
                   max: 30.0,
                   divisions: 29,
                   activeColor: AppColors.purple,
-                  inactiveColor: AppColors.purple.withValues(alpha: 0.3),
+                  inactiveColor: AppColors.purple.withOpacity(0.3),
                   onChanged: (value) {
                     setState(() {
                       _strokeWidth = value;

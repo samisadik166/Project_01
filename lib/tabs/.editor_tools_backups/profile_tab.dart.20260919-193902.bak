@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../model/child.dart';
 import '../utils/app_colors.dart';
 import '../utils/feature_tile.dart';
+import '../widgets/parental_gate.dart';
 import '../add_child_page.dart';
 
 class ProfileTab extends StatefulWidget {
@@ -63,19 +64,182 @@ class _ProfileTabState extends State<ProfileTab> {
     }
   }
 
-  Future<void> _refreshChildren() async {
-    setState(() => _childrenFuture = _loadChildren());
+  Future<void> _handleTileTap(String label) async {
+    if (label == 'Child Profiles') {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => AddChildPage(
+            parentName:
+                FirebaseAuth.instance.currentUser?.displayName ?? 'Parent',
+          ),
+        ),
+      );
+      if (mounted) await _refreshChildren();
+      return;
+    }
+    if (label == 'Account Settings') {
+      final allowed = await showParentalGate(context);
+      if (!mounted || !allowed) return;
+      await _showAccountSettings();
+      return;
+    }
+
+    if (label == 'Daily Reminders') {
+      await _showReminderSettings();
+      return;
+    }
+
+    await _showOfflineContent();
   }
 
-  void _showFeatureComingSoon(String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$label is coming soon! 🚧'),
-        backgroundColor: AppColors.teal,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  Future<void> _showAccountSettings() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || !mounted) return;
+    final parentRef = FirebaseFirestore.instance.collection('users').doc(uid);
+    final snapshot = await parentRef.get();
+    if (!mounted) return;
+    final controller = TextEditingController(
+      text: snapshot.data()?['name']?.toString() ?? '',
+    );
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Account settings'),
+        content: TextField(
+          controller: controller,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(labelText: 'Parent name'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Save'),
+          ),
+        ],
       ),
     );
+    if (saved != true || !mounted) return;
+    await parentRef.set({
+      'name': controller.text.trim(),
+    }, SetOptions(merge: true));
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Account details saved.')));
+  }
+
+  Future<void> _showReminderSettings() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || !mounted) return;
+    final settingsRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('settings')
+        .doc('preferences');
+    final snapshot = await settingsRef.get();
+    if (!mounted) return;
+    var enabled = snapshot.data()?['remindersEnabled'] as bool? ?? true;
+    final timeController = TextEditingController(
+      text: snapshot.data()?['reminderTime']?.toString() ?? '09:00',
+    );
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Daily learning reminder'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Remind me to learn'),
+                value: enabled,
+                onChanged: (value) => setDialogState(() => enabled = value),
+              ),
+              TextField(
+                controller: timeController,
+                decoration: const InputDecoration(
+                  labelText: 'Time (for example 09:00)',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (saved != true || !mounted) return;
+    await settingsRef.set({
+      'remindersEnabled': enabled,
+      'reminderTime': timeController.text.trim(),
+    }, SetOptions(merge: true));
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Reminder settings saved.')));
+  }
+
+  Future<void> _showOfflineContent() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || !mounted) return;
+    final ref = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('settings')
+        .doc('preferences');
+    final snapshot = await ref.get();
+    if (!mounted) return;
+    var enabled = snapshot.data()?['offlineContentEnabled'] as bool? ?? false;
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Offline content'),
+          content: SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Keep learning content ready'),
+            subtitle: const Text(
+              'Recently opened lessons stay available without a connection.',
+            ),
+            value: enabled,
+            onChanged: (value) => setDialogState(() => enabled = value),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (saved != true || !mounted) return;
+    await ref.set({'offlineContentEnabled': enabled}, SetOptions(merge: true));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Offline content preference saved.')),
+    );
+  }
+
+  Future<void> _refreshChildren() async {
+    setState(() => _childrenFuture = _loadChildren());
   }
 
   @override
@@ -137,14 +301,12 @@ class _ProfileTabState extends State<ProfileTab> {
             },
           ),
           const SizedBox(height: 8),
-          ...ProfileTab._items
-              .skip(1)
-              .map(
+          ...ProfileTab._items.skip(1).map(
                 (item) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: FeatureListTile(
                     item: item,
-                    onTap: () => _showFeatureComingSoon(item.label),
+                    onTap: () => showComingSoon(context),
                   ),
                 ),
               ),
@@ -170,44 +332,13 @@ class _EmptyChildrenCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'No child profiles yet',
-            style: TextStyle(
-              fontSize: 16,
-              color: AppColors.darkGray,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Add a child profile to start tracking their learning progress.',
-            style: TextStyle(fontSize: 14, color: AppColors.darkGray),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => AddChildPage(
-                    parentName:
-                        FirebaseAuth.instance.currentUser?.displayName ??
-                        'Parent',
-                  ),
-                ),
-              );
-            },
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('Add Child'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.purple,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-          ),
-        ],
+      child: const Text(
+        'No child profiles yet. Add one from the Family setup flow.',
+        style: TextStyle(
+          fontSize: 15,
+          color: AppColors.darkGray,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -219,35 +350,30 @@ class _ChildCard extends StatelessWidget {
 
   const _ChildCard({required this.child, required this.onTap});
 
-  static const List<_AvatarOption> _avatars = [
-    _AvatarOption(id: 'bear_1', icon: Icons.pets, color: AppColors.pink),
-    _AvatarOption(
-      id: 'star_1',
-      icon: Icons.star_rounded,
-      color: AppColors.yellow,
-    ),
-    _AvatarOption(id: 'cat_1', icon: Icons.emoji_nature, color: AppColors.teal),
-    _AvatarOption(
-      id: 'rocket_1',
-      icon: Icons.rocket_launch_rounded,
-      color: AppColors.purple,
-    ),
-  ];
-
   IconData _avatarIcon(String avatarId) {
-    final avatar = _avatars.firstWhere(
-      (a) => a.id == avatarId,
-      orElse: () => _avatars.first,
-    );
-    return avatar.icon;
+    switch (avatarId) {
+      case 'star_1':
+        return Icons.star_rounded;
+      case 'cat_1':
+        return Icons.emoji_nature;
+      case 'rocket_1':
+        return Icons.rocket_launch_rounded;
+      default:
+        return Icons.pets;
+    }
   }
 
   Color _avatarColor(String avatarId) {
-    final avatar = _avatars.firstWhere(
-      (a) => a.id == avatarId,
-      orElse: () => _avatars.first,
-    );
-    return avatar.color;
+    switch (avatarId) {
+      case 'star_1':
+        return AppColors.yellow;
+      case 'cat_1':
+        return AppColors.teal;
+      case 'rocket_1':
+        return AppColors.purple;
+      default:
+        return AppColors.pink;
+    }
   }
 
   @override
@@ -313,18 +439,6 @@ class _ChildCard extends StatelessWidget {
   }
 }
 
-class _AvatarOption {
-  final String id;
-  final IconData icon;
-  final Color color;
-
-  const _AvatarOption({
-    required this.id,
-    required this.icon,
-    required this.color,
-  });
-}
-
 class _ChildDetailPage extends StatefulWidget {
   final ChildModel child;
   final Future<void> Function() onSaved;
@@ -338,29 +452,12 @@ class _ChildDetailPage extends StatefulWidget {
 class _ChildDetailPageState extends State<_ChildDetailPage> {
   late final TextEditingController _nameController;
   late final TextEditingController _ageController;
-  late String _selectedAvatarId;
-
-  static const List<_AvatarOption> _avatars = [
-    _AvatarOption(id: 'bear_1', icon: Icons.pets, color: AppColors.pink),
-    _AvatarOption(
-      id: 'star_1',
-      icon: Icons.star_rounded,
-      color: AppColors.yellow,
-    ),
-    _AvatarOption(id: 'cat_1', icon: Icons.emoji_nature, color: AppColors.teal),
-    _AvatarOption(
-      id: 'rocket_1',
-      icon: Icons.rocket_launch_rounded,
-      color: AppColors.purple,
-    ),
-  ];
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.child.name);
     _ageController = TextEditingController(text: widget.child.age.toString());
-    _selectedAvatarId = widget.child.avatarId;
   }
 
   @override
@@ -387,7 +484,6 @@ class _ChildDetailPageState extends State<_ChildDetailPage> {
     final updatedChild = widget.child.copyWith(
       name: trimmedName,
       age: ageValue,
-      avatarId: _selectedAvatarId,
     );
 
     try {
@@ -425,83 +521,37 @@ class _ChildDetailPageState extends State<_ChildDetailPage> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  'Choose Avatar',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.darkGray,
-                  ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Child Name',
+                  border: OutlineInputBorder(),
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: _avatars.map((avatar) {
-                    final isSelected = _selectedAvatarId == avatar.id;
-                    return GestureDetector(
-                      onTap: () =>
-                          setState(() => _selectedAvatarId = avatar.id),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: 70,
-                        height: 70,
-                        decoration: BoxDecoration(
-                          color: isSelected ? avatar.color : Colors.white,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: avatar.color, width: 3),
-                          boxShadow: isSelected
-                              ? [
-                                  BoxShadow(
-                                    color: avatar.color.withOpacity(0.5),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ]
-                              : [],
-                        ),
-                        child: Icon(
-                          avatar.icon,
-                          color: isSelected ? Colors.white : avatar.color,
-                          size: 32,
-                        ),
-                      ),
-                    );
-                  }).toList(),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _ageController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Age',
+                  border: OutlineInputBorder(),
                 ),
-                const SizedBox(height: 28),
-                TextField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Child Name',
-                    border: OutlineInputBorder(),
-                  ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _saveChild,
+                icon: const Icon(Icons.save_rounded),
+                label: const Text('Save Changes'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.pink,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _ageController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Age',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton.icon(
-                  onPressed: _saveChild,
-                  icon: const Icon(Icons.save_rounded),
-                  label: const Text('Save Changes'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.pink,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
