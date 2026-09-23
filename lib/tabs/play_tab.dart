@@ -37,7 +37,7 @@ class PlayTab extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
             child: const Text(
-              'Play 🎮',
+              'Play',
               style: TextStyle(
                 fontSize: 26,
                 fontWeight: FontWeight.w800,

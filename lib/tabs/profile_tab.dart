@@ -85,7 +85,7 @@ class _ProfileTabState extends State<ProfileTab> {
         padding: const EdgeInsets.all(20),
         children: [
           const Text(
-            'Profile 👤',
+            'Profile',
             style: TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.w800,

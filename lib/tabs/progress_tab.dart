@@ -19,11 +19,7 @@ class _ProgressTabState extends State<ProgressTab> {
 
   static const List<FeatureItem> _items = [
     FeatureItem('Stars & Badges', Icons.star_rounded, AppColors.yellow),
-    FeatureItem(
-      'Performance Reports',
-      Icons.analytics_rounded,
-      AppColors.pink,
-    ),
+    FeatureItem('Performance Reports', Icons.analytics_rounded, AppColors.pink),
     FeatureItem(
       'Certificates',
       Icons.workspace_premium_rounded,
@@ -114,7 +110,7 @@ class _ProgressTabState extends State<ProgressTab> {
             padding: const EdgeInsets.all(20),
             children: [
               const Text(
-                'Progress 📊',
+                'Progress',
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w800,

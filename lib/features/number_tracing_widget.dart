@@ -24,7 +24,7 @@ class TracingNumberData {
   const TracingNumberData(this.digit, this.color, this.strokes);
 }
 
-const double kNumCanvasSize = 260;
+const double kNumCanvasSize = 280;
 
 final List<TracingNumberData> _allNumbers = [
   TracingNumberData('0', AppColors.pink, [
@@ -169,8 +169,8 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
   Widget build(BuildContext context) {
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
-    final pageHeight = isLandscape ? 220.0 : 560.0;
-    final canvasSize = isLandscape ? 170.0 : 260.0;
+    final pageHeight = isLandscape ? 260.0 : 620.0;
+    final canvasSize = isLandscape ? 210.0 : kNumCanvasSize;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -178,7 +178,7 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
             ? constraints.maxHeight
             : 600.0;
         final safePageHeight = isLandscape
-            ? (availableHeight * 0.58).clamp(180.0, 220.0)
+            ? (availableHeight * 0.62).clamp(220.0, 260.0)
             : pageHeight;
 
         return SingleChildScrollView(
@@ -443,7 +443,7 @@ class _NumberTracingCardState extends State<_NumberTracingCard>
             ? constraints.maxWidth
             : 900.0;
         final canvasSize = widget.canvasSize
-            .clamp(110.0, maxWidth * 0.42)
+            .clamp(180.0, maxWidth * 0.82)
             .toDouble();
 
         return SingleChildScrollView(
