@@ -1,408 +1,228 @@
-import 'dart:math' as math;
-
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import '../model/result_model.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+
+import '../data/progress_repository.dart';
+import '../model/progress_report.dart';
 import '../utils/app_colors.dart';
+import '../widgets/parental_gate.dart';
+import '../widgets/progress_report_view.dart';
 
 class PerformanceReportsPage extends StatefulWidget {
   final String childId;
+  final ProgressRepository? repository;
 
-  const PerformanceReportsPage({super.key, required this.childId});
+  const PerformanceReportsPage({
+    super.key,
+    required this.childId,
+    this.repository,
+  });
 
   @override
   State<PerformanceReportsPage> createState() => _PerformanceReportsPageState();
 }
 
 class _PerformanceReportsPageState extends State<PerformanceReportsPage> {
-  Stream<QuerySnapshot> _resultsStream() {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) {
-      return const Stream.empty();
-    }
+  static final _defaultRepository = FirestoreProgressRepository();
+  ProgressRepository get _repository => widget.repository ?? _defaultRepository;
 
-    return FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('children')
-        .doc(widget.childId)
-        .collection('results')
-        .orderBy('completedAt', descending: true)
-        .snapshots();
+  ProgressDateRange _dateRange = ProgressDateRange.week;
+  Future<ProgressReport>? _reportFuture;
+  bool _gatePassed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkParentGate());
+  }
+
+  Future<void> _checkParentGate() async {
+    final passed = await showParentalGate(context);
+    if (!mounted) return;
+    if (!passed) {
+      Navigator.of(context).pop();
+      return;
+    }
+    setState(() {
+      _gatePassed = true;
+      _loadReport();
+    });
+  }
+
+  void _loadReport() {
+    _reportFuture = _repository.loadReport(
+      childId: widget.childId,
+      dateRange: _dateRange,
+    );
+  }
+
+  void _changeDateRange(ProgressDateRange range) {
+    setState(() {
+      _dateRange = range;
+      _loadReport();
+    });
+  }
+
+  Future<void> _exportPdf(ProgressReport report) async {
+    final document = pw.Document();
+    document.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(36),
+        build: (context) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text(
+              'Little Learners Progress Report',
+              style: pw.TextStyle(
+                fontSize: 24,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.pink700,
+              ),
+            ),
+            pw.SizedBox(height: 12),
+            pw.Text('${report.childName}  •  Age ${report.age}'),
+            pw.Text('Period: ${_dateRange.label}'),
+            pw.Divider(),
+            pw.Wrap(
+              spacing: 18,
+              runSpacing: 8,
+              children: [
+                pw.Text('Stars: ${report.totalStars}'),
+                pw.Text('Badges earned: ${report.badgesEarned}'),
+                pw.Text('Activities: ${report.activitiesCompleted}'),
+                pw.Text('Learning streak: ${report.learningStreak} days'),
+              ],
+            ),
+            pw.SizedBox(height: 22),
+            pw.Text(
+              'Learning progress',
+              style: pw.TextStyle(
+                fontSize: 18,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+            pw.SizedBox(height: 8),
+            ...report.subjects.map(
+              (subject) => pw.Padding(
+                padding: const pw.EdgeInsets.symmetric(vertical: 5),
+                child: pw.Row(
+                  children: [
+                    pw.Expanded(child: pw.Text(subject.subject)),
+                    pw.Text('${subject.percentage}%  •  ${subject.encouragement}'),
+                  ],
+                ),
+              ),
+            ),
+            pw.SizedBox(height: 18),
+            pw.Text(
+              'Weekly activity',
+              style: pw.TextStyle(
+                fontSize: 18,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+            pw.Text(
+              'Mon ${report.weeklyActivity[0]}   Tue ${report.weeklyActivity[1]}   '
+              'Wed ${report.weeklyActivity[2]}   Thu ${report.weeklyActivity[3]}   '
+              'Fri ${report.weeklyActivity[4]}   Sat ${report.weeklyActivity[5]}   '
+              'Sun ${report.weeklyActivity[6]}',
+            ),
+            pw.Spacer(),
+            pw.Text(
+              'Keep going! Every little step is a big achievement.',
+              style: pw.TextStyle(
+                fontSize: 14,
+                fontStyle: pw.FontStyle.italic,
+                color: PdfColors.teal700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      await Printing.sharePdf(
+        bytes: await document.save(),
+        filename: 'little_learners_${report.childName}_report.pdf',
+      );
+    } catch (error) {
+      debugPrint('Could not export the progress report PDF: $error');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not create the report PDF.')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Performance Reports'),
+        title: const Text('Progress Report'),
         backgroundColor: AppColors.pink,
         foregroundColor: Colors.white,
       ),
-      body: SafeArea(
-        child: StreamBuilder<QuerySnapshot>(
-          stream: _resultsStream(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            final results = (snapshot.data?.docs ?? [])
-                .map(ResultModel.fromDoc)
-                .toList();
-
-            final quizCount = results.length;
-            final averageScore = results.isEmpty
-                ? 0.0
-                : results
-                          .map(
-                            (result) =>
-                                (result.score /
-                                    math.max(1, result.totalQuestions)) *
-                                100,
-                          )
-                          .reduce((a, b) => a + b) /
-                      results.length;
-
-            if (results.isEmpty) {
-              return ListView(
-                padding: const EdgeInsets.all(20),
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: const Center(
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.analytics_rounded,
-                            color: Colors.grey,
-                            size: 48,
-                          ),
-                          SizedBox(height: 12),
-                          Text(
-                            'No data yet',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.darkGray,
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Complete quizzes to see performance stats here.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            }
-
-            return ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                // Summary Stats
-                const Text(
-                  'Summary',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.darkGray,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _MetricCard(
-                        label: 'Quizzes Completed',
-                        value: '$quizCount',
-                        icon: Icons.quiz_rounded,
-                        color: AppColors.teal,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _MetricCard(
-                        label: 'Average Score',
-                        value: '${averageScore.toStringAsFixed(0)}%',
-                        icon: Icons.trending_up_rounded,
-                        color: AppColors.pink,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // Performance Breakdown
-                const Text(
-                  'Performance Breakdown',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.darkGray,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _PerformanceRow(
-                        label: 'Perfect scores (100%)',
-                        value: results
-                            .where((r) =>
-                                r.score == r.totalQuestions && r.totalQuestions > 0)
-                            .length
-                            .toString(),
-                      ),
-                      const SizedBox(height: 12),
-                      _PerformanceRow(
-                        label: 'Good scores (≥75%)',
-                        value: results
-                            .where((r) =>
-                                r.totalQuestions > 0 &&
-                                (r.score / r.totalQuestions) >= 0.75 &&
-                                r.score < r.totalQuestions)
-                            .length
-                            .toString(),
-                      ),
-                      const SizedBox(height: 12),
-                      _PerformanceRow(
-                        label: 'Needs improvement (<75%)',
-                        value: results
-                            .where((r) =>
-                                r.totalQuestions > 0 &&
-                                (r.score / r.totalQuestions) < 0.75)
-                            .length
-                            .toString(),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Recent Activity
-                const Text(
-                  'Recent Activity',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.darkGray,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ...results.take(5).map(
-                      (result) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(18),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 8,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      result.quizId,
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.darkGray,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '${result.score}/${result.totalQuestions} correct',
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: _getScoreColor(result.score, result.totalQuestions)
-                                      .withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  '${((result.score / math.max(1, result.totalQuestions)) * 100).toStringAsFixed(0)}%',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: _getScoreColor(result.score, result.totalQuestions),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-              ],
-            );
-          },
-        ),
-      ),
+      body: !_gatePassed
+          ? const Center(child: CircularProgressIndicator())
+          : FutureBuilder<ProgressReport>(
+              future: _reportFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: AppColors.pink),
+                  );
+                }
+                if (snapshot.hasError) {
+                  return _ReportLoadError(
+                    onRetry: () => setState(_loadReport),
+                  );
+                }
+                final report = snapshot.data;
+                if (report == null) {
+                  return _ReportLoadError(
+                    onRetry: () => setState(_loadReport),
+                  );
+                }
+                return ProgressReportView(
+                  report: report,
+                  dateRange: _dateRange,
+                  onDateRangeChanged: _changeDateRange,
+                  onExport: () => _exportPdf(report),
+                );
+              },
+            ),
     );
-  }
-
-  Color _getScoreColor(int score, int total) {
-    if (total == 0) return Colors.grey;
-    final percentage = score / total;
-    if (percentage >= 0.75) return AppColors.teal;
-    if (percentage >= 0.5) return AppColors.yellow;
-    return AppColors.pink;
   }
 }
 
-class _MetricCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
+class _ReportLoadError extends StatelessWidget {
+  final VoidCallback onRetry;
 
-  const _MetricCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
+  const _ReportLoadError({required this.onRetry});
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            color.withOpacity(0.2),
-            color.withOpacity(0.05),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: color.withOpacity(0.3),
-          width: 2,
-        ),
-      ),
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 32),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              color: AppColors.darkGray,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppColors.darkGray,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PerformanceRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _PerformanceRow({
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: AppColors.darkGray,
-            ),
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: AppColors.lightGray,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            value,
-            style: const TextStyle(
-              fontSize: 14,
+          const Text(
+            'We could not load the report just now.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 20,
               fontWeight: FontWeight.w700,
               color: AppColors.darkGray,
             ),
           ),
-        ),
-      ],
-    );
-  }
+          const SizedBox(height: 12),
+          FilledButton(onPressed: onRetry, child: const Text('Try again')),
+        ],
+      ),
+    ),
+  );
 }
