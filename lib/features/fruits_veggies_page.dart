@@ -9,7 +9,6 @@ class FruitsVeggiesPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Fruits & Vegetables'),
         backgroundColor: AppColors.pink,
         foregroundColor: Colors.white,
       ),

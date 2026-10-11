@@ -33,9 +33,18 @@ class FirestoreProgressRepository implements ProgressRepository {
   Future<String?> loadActiveChildId() async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return null;
-    final children = await _firestore
-        .collection('users')
-        .doc(uid)
+    final userRef = _firestore.collection('users').doc(uid);
+    final userSnapshot = await userRef.get();
+    final selectedChildId = userSnapshot.data()?['activeChildId']?.toString();
+    if (selectedChildId != null && selectedChildId.isNotEmpty) {
+      final selectedChild = await userRef
+          .collection('children')
+          .doc(selectedChildId)
+          .get();
+      if (selectedChild.exists) return selectedChildId;
+    }
+
+    final children = await userRef
         .collection('children')
         .orderBy('createdAt')
         .limit(1)
@@ -80,8 +89,7 @@ class FirestoreProgressRepository implements ProgressRepository {
         id: doc.id,
         taskType: data['taskType']?.toString() ?? 'activity',
         taskId: data['taskId']?.toString() ?? doc.id,
-        completedAt:
-            (data['completedAt'] as Timestamp?)?.toDate() ?? _now(),
+        completedAt: (data['completedAt'] as Timestamp?)?.toDate() ?? _now(),
         stars: (data['stars'] as num?)?.toInt() ?? 0,
       );
     }).toList();
@@ -95,9 +103,7 @@ class FirestoreProgressRepository implements ProgressRepository {
       childName: childName.isEmpty ? 'Little Learner' : childName,
       age: (childData['age'] as num?)?.toInt() ?? 0,
       avatarId: childData['avatarId']?.toString() ?? '',
-      totalStars: dateRange == ProgressDateRange.allTime
-          ? totalStars
-          : reportDateActivities.fold(0, (total, item) => total + item.stars),
+      totalStars: totalStars,
       badgesEarned: _badgeCount(totalStars),
       activitiesCompleted: reportDateActivities.length,
       learningStreak: _streak(reportDateActivities, _now()),
@@ -127,12 +133,10 @@ class FirestoreProgressRepository implements ProgressRepository {
       [10, 25, 50].where((milestone) => stars >= milestone).length;
 
   int _streak(List<ProgressActivity> activities, DateTime now) {
-    final activeDays = activities
-        .map((activity) {
-          final date = activity.completedAt;
-          return DateTime(date.year, date.month, date.day);
-        })
-        .toSet();
+    final activeDays = activities.map((activity) {
+      final date = activity.completedAt;
+      return DateTime(date.year, date.month, date.day);
+    }).toSet();
     var day = DateTime(now.year, now.month, now.day);
     if (!activeDays.contains(day)) day = day.subtract(const Duration(days: 1));
     var streak = 0;
@@ -165,17 +169,13 @@ class FirestoreProgressRepository implements ProgressRepository {
               .where((activity) => activity.taskType == 'alphabet')
               .map((activity) => activity.taskId)
               .toSet()
-        : completedTasks
-              .where((key) => key.startsWith('alphabet_'))
-              .toSet();
+        : completedTasks.where((key) => key.startsWith('alphabet_')).toSet();
     final numberIds = completedTasks == null
         ? activities
               .where((activity) => activity.taskType == 'number')
               .map((activity) => activity.taskId)
               .toSet()
-        : completedTasks
-              .where((key) => key.startsWith('number_'))
-              .toSet();
+        : completedTasks.where((key) => key.startsWith('number_')).toSet();
     final alphabet = alphabetIds.length;
     final numbers = numberIds.length;
     final quizCount = activities
@@ -183,8 +183,12 @@ class FirestoreProgressRepository implements ProgressRepository {
         .map((activity) => activity.taskId)
         .toSet()
         .length;
-    final drawingCount = activities.where((item) => item.taskType == 'drawing').length;
-    final gameCount = activities.where((item) => item.taskType == 'game').length;
+    final drawingCount = activities
+        .where((item) => item.taskType == 'drawing')
+        .length;
+    final gameCount = activities
+        .where((item) => item.taskType == 'game')
+        .length;
 
     return [
       _subject('Alphabet', alphabet, 26, AppColors.pink),
@@ -196,9 +200,7 @@ class FirestoreProgressRepository implements ProgressRepository {
   }
 
   SubjectProgress _subject(String name, int count, int goal, Color color) {
-    final percentage = (count * 100 / math.max(1, goal))
-        .round()
-        .clamp(0, 100);
+    final percentage = (count * 100 / math.max(1, goal)).round().clamp(0, 100);
     return SubjectProgress(
       subject: name,
       percentage: percentage,

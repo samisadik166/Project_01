@@ -7,7 +7,22 @@ import '../utils/feature_tile.dart';
 import '../add_child_page.dart';
 
 class ProfileTab extends StatefulWidget {
-  const ProfileTab({super.key});
+  final List<ChildModel> children;
+  final String? selectedChildId;
+  final Future<void> Function(String) onChildSelected;
+  final Future<void> Function([String?]) onChildrenChanged;
+  final bool childrenLoading;
+  final Object? childrenError;
+
+  const ProfileTab({
+    super.key,
+    required this.children,
+    required this.selectedChildId,
+    required this.onChildSelected,
+    required this.onChildrenChanged,
+    required this.childrenLoading,
+    required this.childrenError,
+  });
 
   static const List<FeatureItem> _items = [
     FeatureItem('Child Profiles', Icons.face_rounded, AppColors.purple),
@@ -29,42 +44,18 @@ class ProfileTab extends StatefulWidget {
 }
 
 class _ProfileTabState extends State<ProfileTab> {
-  late Future<List<ChildModel>> _childrenFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _childrenFuture = _loadChildren();
-  }
-
-  Future<List<ChildModel>> _loadChildren() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return [];
-
-    try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('children')
-          .orderBy('createdAt', descending: false)
-          .get();
-
-      return snapshot.docs.map(ChildModel.fromDoc).toList();
-    } catch (error) {
-      debugPrint('Failed to load children: $error');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not load your children right now.'),
-          ),
-        );
-      }
-      return [];
-    }
-  }
-
-  Future<void> _refreshChildren() async {
-    setState(() => _childrenFuture = _loadChildren());
+  Future<void> _addChild() async {
+    final childId = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => AddChildPage(
+          parentName:
+              FirebaseAuth.instance.currentUser?.displayName ?? 'Parent',
+          returnToPrevious: true,
+        ),
+      ),
+    );
+    if (!mounted || childId == null) return;
+    await widget.onChildrenChanged(childId);
   }
 
   void _showFeatureComingSoon(String label) {
@@ -93,50 +84,131 @@ class _ProfileTabState extends State<ProfileTab> {
             ),
           ),
           const SizedBox(height: 16),
-          FutureBuilder<List<ChildModel>>(
-            future: _childrenFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 32),
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              }
-
-              final children = snapshot.data ?? [];
-
-              if (children.isEmpty) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _EmptyChildrenCard(),
-                );
-              }
-
-              return Column(
-                children: children
-                    .map(
-                      (child) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _ChildCard(
-                          child: child,
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => _ChildDetailPage(
-                                  child: child,
-                                  onSaved: _refreshChildren,
-                                ),
-                              ),
-                            );
-                          },
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.purple.withOpacity(0.28)),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.purple.withOpacity(0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Children',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.darkGray,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Add profiles and choose who is learning.',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.darkGray,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    FilledButton.icon(
+                      onPressed: widget.childrenLoading ? null : _addChild,
+                      icon: const Icon(Icons.add_rounded),
+                      label: const Text('Add'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.purple,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+                if (widget.childrenError != null) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Could not refresh child profiles. Check your connection.',
+                          style: TextStyle(color: AppColors.darkGray),
                         ),
                       ),
-                    )
-                    .toList(),
-              );
-            },
+                      TextButton(
+                        onPressed: () => widget.onChildrenChanged(),
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ],
+                if (widget.childrenLoading)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 28),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (widget.children.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 18),
+                    child: Text(
+                      'Add a child profile to start tracking learning progress.',
+                      style: TextStyle(color: AppColors.darkGray),
+                    ),
+                  )
+                else ...[
+                  const SizedBox(height: 16),
+                  for (var index = 0; index < widget.children.length; index++)
+                    Padding(
+                      padding: EdgeInsets.only(
+                        bottom: index == widget.children.length - 1 ? 0 : 10,
+                      ),
+                      child: _ChildCard(
+                        child: widget.children[index],
+                        selected:
+                            widget.children[index].childId ==
+                            widget.selectedChildId,
+                        onSelect: () => widget.onChildSelected(
+                          widget.children[index].childId,
+                        ),
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => _ChildDetailPage(
+                                child: widget.children[index],
+                                onSaved: () => widget.onChildrenChanged(),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ],
+            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 28),
+          const Text(
+            'Other options',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: AppColors.darkGray,
+            ),
+          ),
+          const SizedBox(height: 12),
           ...ProfileTab._items
               .skip(1)
               .map(
@@ -154,70 +226,18 @@ class _ProfileTabState extends State<ProfileTab> {
   }
 }
 
-class _EmptyChildrenCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'No child profiles yet',
-            style: TextStyle(
-              fontSize: 16,
-              color: AppColors.darkGray,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Add a child profile to start tracking their learning progress.',
-            style: TextStyle(fontSize: 14, color: AppColors.darkGray),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => AddChildPage(
-                    parentName:
-                        FirebaseAuth.instance.currentUser?.displayName ??
-                        'Parent',
-                  ),
-                ),
-              );
-            },
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('Add Child'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.purple,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _ChildCard extends StatelessWidget {
   final ChildModel child;
   final VoidCallback onTap;
+  final bool selected;
+  final VoidCallback onSelect;
 
-  const _ChildCard({required this.child, required this.onTap});
+  const _ChildCard({
+    required this.child,
+    required this.onTap,
+    required this.selected,
+    required this.onSelect,
+  });
 
   static const List<_AvatarOption> _avatars = [
     _AvatarOption(id: 'bear_1', icon: Icons.pets, color: AppColors.pink),
@@ -305,7 +325,16 @@ class _ChildCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+            IconButton(
+              onPressed: onSelect,
+              tooltip: selected ? 'Selected child' : 'Select child',
+              icon: Icon(
+                selected
+                    ? Icons.check_circle_rounded
+                    : Icons.radio_button_unchecked_rounded,
+                color: selected ? AppColors.teal : Colors.grey,
+              ),
+            ),
           ],
         ),
       ),

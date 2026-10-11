@@ -8,6 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:preschool_learning_app/features/alphabet_page.dart';
 import 'package:preschool_learning_app/features/number_tracing_widget.dart';
 import 'package:preschool_learning_app/features/numbers_page.dart';
 import 'package:preschool_learning_app/login_page.dart';
@@ -18,7 +19,7 @@ void main() {
     await tester.pumpWidget(const PreschoolApp());
 
     expect(find.text('Little Learners'), findsOneWidget);
-    expect(find.text('Learning is fun! 🌈'), findsOneWidget);
+    expect(find.text('Learning is fun!'), findsOneWidget);
   });
 
   testWidgets('login page shows a Google sign-in option', (
@@ -35,15 +36,43 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(900, 400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(const MaterialApp(home: NumbersPage()));
+    await tester.pumpWidget(
+      const MaterialApp(home: NumbersPage(childId: 'child-1')),
+    );
 
-    await tester.tap(find.text('Number Tracing'));
     await tester.pumpAndSettle();
 
     final tracingRect = tester.getRect(find.byType(NumberTracingWidget));
+    final canvasFinder = find.byKey(const ValueKey('number-tracing-canvas-0'));
+    final canvasRect = tester.getRect(canvasFinder);
     final viewportHeight = tester.binding.renderView.size.height;
 
+    expect(find.byType(NumberTracingWidget), findsOneWidget);
+    expect(canvasFinder, findsOneWidget);
     expect(tracingRect.bottom <= viewportHeight, isTrue);
+    expect(canvasRect.bottom <= viewportHeight, isTrue);
+    expect(canvasRect.width, greaterThan(200));
     expect(find.text('1 / 10'), findsOneWidget);
+  });
+
+  testWidgets('alphabet tracing canvas remains visible in landscape mode', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(900, 400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      const MaterialApp(home: AlphabetPage(childId: 'child-1')),
+    );
+    await tester.pump();
+
+    final canvas = find.byKey(const ValueKey('alphabet-tracing-canvas-A'));
+    final canvasRect = tester.getRect(canvas);
+    final viewportHeight = tester.binding.renderView.size.height;
+
+    expect(canvas, findsOneWidget);
+    expect(canvasRect.bottom <= viewportHeight, isTrue);
+    expect(canvasRect.width, greaterThan(200));
+    expect(tester.takeException(), isNull);
   });
 }

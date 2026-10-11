@@ -9,7 +9,6 @@ class RewardsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Stars & Badges'),
         backgroundColor: AppColors.teal,
         foregroundColor: Colors.white,
       ),

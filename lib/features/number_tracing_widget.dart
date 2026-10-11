@@ -7,7 +7,9 @@ import '../utils/reward_service.dart';
 /// alphabet tracing page: dotted stroke guides, a mascot that demonstrates
 /// each stroke first, then the kid traces with their finger and gets checked.
 class NumberTracingWidget extends StatefulWidget {
-  const NumberTracingWidget({super.key});
+  final String childId;
+
+  const NumberTracingWidget({super.key, required this.childId});
 
   @override
   State<NumberTracingWidget> createState() => _NumberTracingWidgetState();
@@ -24,7 +26,7 @@ class TracingNumberData {
   const TracingNumberData(this.digit, this.color, this.strokes);
 }
 
-const double kNumCanvasSize = 280;
+const double kNumCanvasSize = 320;
 
 final List<TracingNumberData> _allNumbers = [
   TracingNumberData('0', AppColors.pink, [
@@ -170,7 +172,7 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
     final pageHeight = isLandscape ? 260.0 : 620.0;
-    final canvasSize = isLandscape ? 210.0 : kNumCanvasSize;
+    final canvasSize = isLandscape ? 240.0 : kNumCanvasSize;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -250,6 +252,7 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
                   itemBuilder: (context, index) => _NumberTracingCard(
                     data: _allNumbers[index],
                     canvasSize: canvasSize,
+                    childId: widget.childId,
                   ),
                 ),
               ),
@@ -296,8 +299,13 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
 class _NumberTracingCard extends StatefulWidget {
   final TracingNumberData data;
   final double canvasSize;
+  final String childId;
 
-  const _NumberTracingCard({required this.data, this.canvasSize = 260});
+  const _NumberTracingCard({
+    required this.data,
+    required this.childId,
+    this.canvasSize = 260,
+  });
 
   @override
   State<_NumberTracingCard> createState() => _NumberTracingCardState();
@@ -422,6 +430,7 @@ class _NumberTracingCardState extends State<_NumberTracingCard>
       if (isLastStroke && !_rewardGranted) {
         _rewardGranted = true;
         await RewardService.awardTaskStarsForCurrentChild(
+          childId: widget.childId,
           taskType: 'number',
           taskId: widget.data.digit,
         );
@@ -439,12 +448,156 @@ class _NumberTracingCardState extends State<_NumberTracingCard>
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        final isLandscape =
+            MediaQuery.of(context).orientation == Orientation.landscape;
         final maxWidth = constraints.maxWidth.isFinite
             ? constraints.maxWidth
             : 900.0;
-        final canvasSize = widget.canvasSize
-            .clamp(180.0, maxWidth * 0.82)
-            .toDouble();
+        final canvasSize = isLandscape
+            ? (constraints.maxHeight - 12)
+                  .clamp(150.0, widget.canvasSize)
+                  .toDouble()
+            : widget.canvasSize.clamp(180.0, maxWidth * 0.82).toDouble();
+
+        final mascot = Container(
+          padding: EdgeInsets.all(isLandscape ? 10 : 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Text('🐻', style: TextStyle(fontSize: isLandscape ? 28 : 32)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  _mascotMessage,
+                  style: TextStyle(
+                    fontSize: isLandscape ? 12 : 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.darkGray,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+
+        final canvas = GestureDetector(
+          key: ValueKey('number-tracing-canvas-${widget.data.digit}'),
+          onPanStart: _onPanStart,
+          onPanUpdate: _onPanUpdate,
+          onPanEnd: _onPanEnd,
+          child: Container(
+            width: canvasSize,
+            height: canvasSize,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: widget.data.color.withOpacity(0.3),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: AnimatedBuilder(
+              animation: _demoController,
+              builder: (context, _) => CustomPaint(
+                painter: _NumberTracingPainter(
+                  data: widget.data,
+                  activeStroke: _activeStroke,
+                  completedStrokes: _completedStrokes,
+                  drawnPoints: _drawnPoints,
+                  demoProgress: _demoController.value,
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final strokeIndicators = Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (int i = 0; i < widget.data.strokes.length; i++)
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _completedStrokes.contains(i)
+                      ? widget.data.color
+                      : widget.data.color.withOpacity(0.25),
+                ),
+              ),
+          ],
+        );
+
+        final showDemo = !_celebrating
+            ? TextButton.icon(
+                style: isLandscape
+                    ? TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                      )
+                    : null,
+                onPressed: _playDemo,
+                icon: Icon(
+                  Icons.visibility_rounded,
+                  color: widget.data.color,
+                ),
+                label: Text(
+                  'Show Me Again',
+                  style: TextStyle(
+                    color: widget.data.color,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              )
+            : const SizedBox.shrink();
+
+        if (isLandscape) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      mascot,
+                      Text(
+                        widget.data.digit,
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w900,
+                          color: widget.data.color,
+                        ),
+                      ),
+                      strokeIndicators,
+                      showDemo,
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                canvas,
+              ],
+            ),
+          );
+        }
 
         return SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -454,39 +607,7 @@ class _NumberTracingCardState extends State<_NumberTracingCard>
               mainAxisSize: MainAxisSize.min,
               children: [
                 const SizedBox(height: 4),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        const Text('🐻', style: TextStyle(fontSize: 32)),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            _mascotMessage,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.darkGray,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: mascot),
                 const SizedBox(height: 14),
                 Text(
                   widget.data.digit,
@@ -497,78 +618,11 @@ class _NumberTracingCardState extends State<_NumberTracingCard>
                   ),
                 ),
                 const SizedBox(height: 10),
-                GestureDetector(
-                  onPanStart: _onPanStart,
-                  onPanUpdate: _onPanUpdate,
-                  onPanEnd: _onPanEnd,
-                  child: Container(
-                    width: canvasSize,
-                    height: canvasSize,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: widget.data.color.withOpacity(0.3),
-                        width: 2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 12,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: AnimatedBuilder(
-                      animation: _demoController,
-                      builder: (context, _) {
-                        return CustomPaint(
-                          painter: _NumberTracingPainter(
-                            data: widget.data,
-                            activeStroke: _activeStroke,
-                            completedStrokes: _completedStrokes,
-                            drawnPoints: _drawnPoints,
-                            demoProgress: _demoController.value,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
+                canvas,
                 const SizedBox(height: 14),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    for (int i = 0; i < widget.data.strokes.length; i++)
-                      Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: _completedStrokes.contains(i)
-                              ? widget.data.color
-                              : widget.data.color.withOpacity(0.25),
-                        ),
-                      ),
-                  ],
-                ),
+                strokeIndicators,
                 const SizedBox(height: 10),
-                if (!_celebrating)
-                  TextButton.icon(
-                    onPressed: _playDemo,
-                    icon: Icon(
-                      Icons.visibility_rounded,
-                      color: widget.data.color,
-                    ),
-                    label: Text(
-                      'Show Me Again',
-                      style: TextStyle(
-                        color: widget.data.color,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
+                showDemo,
               ],
             ),
           ),
@@ -673,15 +727,29 @@ class _NumberTracingPainter extends CustomPainter {
     if (drawnPoints.length > 1) {
       final drawnPath = Path()
         ..moveTo(drawnPoints.first.dx, drawnPoints.first.dy);
-      for (final p in drawnPoints.skip(1)) {
-        drawnPath.lineTo(p.dx, p.dy);
+      for (var i = 1; i < drawnPoints.length - 1; i++) {
+        final current = drawnPoints[i];
+        final next = drawnPoints[i + 1];
+        final midpoint = Offset(
+          (current.dx + next.dx) / 2,
+          (current.dy + next.dy) / 2,
+        );
+        drawnPath.quadraticBezierTo(
+          current.dx,
+          current.dy,
+          midpoint.dx,
+          midpoint.dy,
+        );
       }
+      drawnPath.lineTo(drawnPoints.last.dx, drawnPoints.last.dy);
       canvas.drawPath(
         drawnPath,
         Paint()
           ..color = AppColors.darkGray
           ..strokeWidth = 7
           ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..isAntiAlias = true
           ..style = PaintingStyle.stroke,
       );
     }

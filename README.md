@@ -1,61 +1,85 @@
-# Little Learners — Preschool Learning App
+# Little Learners
 
-A Flutter-based preschool learning app designed for children ages 3–6. The app combines playful learning activities with Firebase-backed authentication and child progress tracking.
+Little Learners is a Flutter preschool learning app built for young children ages 3–6. It combines colorful educational activities with secure account management and a parent-friendly interface.
 
-## Features
+## Overview
 
-- Kid-friendly splash screen and onboarding flow
-- Email/password sign-in and sign-up with Firebase Authentication
+The app is designed to help children practice foundational skills through a playful, low-stress experience. Learners can explore a range of activities including tracing, counting, and interactive play while parents can manage profiles and track progress.
+
+## Key Features
+
+- Kid-friendly login and splash screen experience
+- Email/password sign-in and account creation
 - Google sign-in support
-- Parent and child profile management
-- Bottom navigation for Home, Play, Progress, and Profile
-- Alphabet tracing activities
-- Number tracing and counting activities
-- Play tab with interactive games, drawing, and quizzes
-- Progress tracking with stars, badges, reports, and certificates
-- Profile tools for managing children and settings
+- Multiple child profiles with parent-controlled learner selection
+- Home, Play, Progress, and Profile navigation
+- Alphabet tracing and number tracing activities
+- Simple educational games and practice screens
+- Per-child quiz history, stars, badges, and learning progress
+- Support for adding children and managing family accounts
 
 ## Tech Stack
 
 - Flutter
 - Dart
-- Firebase Auth
+- Firebase Authentication
 - Cloud Firestore
 - Google Sign-In
 
 ## Project Structure
 
-- lib/main.dart — app entry point
-- lib/login_page.dart — sign-in and sign-up UI
-- lib/home_page.dart — main app shell and navigation
-- lib/features/ — learning modules and activities
-- lib/tabs/ — tab screens
-- lib/model/ — data models
-- lib/utils/ — shared helpers, colors, and utilities
-- test/ — widget and feature tests
+- `lib/main.dart` — app entry point and splash screen
+- `lib/login_page.dart` — login flow and Firebase authentication UI
+- `lib/sign_up_page.dart` — parent account creation page
+- `lib/home_page.dart` — main navigation and app shell
+- `lib/features/` — learning features and activity widgets
+- `lib/tabs/` — app tabs and related screens
+- `lib/model/` — data models
+- `lib/utils/` — shared helpers and utilities
+- `test/` — widget and app tests
+
+## Prerequisites
+
+Before running the app, make sure you have:
+
+- Flutter SDK installed and added to your PATH
+- An IDE such as VS Code or Android Studio
+- A Firebase project configured for your app
+- Android/iOS/Web Firebase configuration files generated for this project
 
 ## Getting Started
 
-1. Install Flutter and ensure it is available on your PATH.
-2. Clone the project.
-3. Open the project folder in your editor.
-4. Install dependencies:
+1. Clone the repository:
+
+   git clone <repository-url>
+
+2. Change into the project directory:
+
+   cd preschool_learning_app
+
+3. Install dependencies:
 
    flutter pub get
 
-5. Configure Firebase for your project if needed:
-   - add Firebase config files for Android/iOS/Web
-   - ensure firebase_options.dart matches your project
-   - enable Authentication providers in Firebase Console
+4. Configure Firebase:
+   - Add your Firebase configuration files (for example, `firebase_options.dart`)
+   - Enable Authentication methods in the Firebase Console
+   - Ensure Firestore access is configured for your project
 
-6. Run the app:
+5. Run the app:
 
    flutter run
 
+## Running Tests
+
+To run the widget tests:
+
+   flutter test
+
 ## Firebase Notes
 
-This project uses Firebase for authentication and user data storage. Make sure the Firebase configuration files are correctly generated and included before running the app on a device or emulator.
+This application uses Firebase for authentication and user data storage. If you are setting up a fresh environment, make sure the Firebase project and configuration files match your app setup before launching the app on an emulator or device.
 
 ## Current Status
 
-The app includes a complete learning experience with multiple educational modules, authentication, and progress tracking. Additional polish and feature expansion can continue from this baseline.
+The project includes a working learning app foundation with activity screens, profile flows, and authentication support. It is well-suited for continued enhancement with more lessons, polish, and additional educational content.

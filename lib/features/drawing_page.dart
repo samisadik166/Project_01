@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/app_colors.dart';
+import '../utils/reward_service.dart';
 
 class DrawingPath {
   final List<Offset> points;
@@ -14,7 +15,9 @@ class DrawingPath {
 }
 
 class DrawingPage extends StatefulWidget {
-  const DrawingPage({super.key});
+  final String childId;
+
+  const DrawingPage({super.key, required this.childId});
 
   @override
   State<DrawingPage> createState() => _DrawingPageState();
@@ -26,6 +29,7 @@ class _DrawingPageState extends State<DrawingPage> {
 
   Color _selectedColor = AppColors.purple;
   double _strokeWidth = 5.0;
+  bool _hasRecordedDrawing = false;
 
   final List<Color> _colorPalette = [
     Colors.black,
@@ -62,13 +66,25 @@ class _DrawingPageState extends State<DrawingPage> {
     });
   }
 
-  void _onPanEnd(DragEndDetails details) {
+  Future<void> _onPanEnd(DragEndDetails details) async {
     setState(() {
       if (_currentPath != null) {
         _paths.add(_currentPath!);
         _currentPath = null;
       }
     });
+    if (!_hasRecordedDrawing && _paths.isNotEmpty) {
+      _hasRecordedDrawing = true;
+      try {
+        await RewardService.awardTaskStarsForCurrentChild(
+          childId: widget.childId,
+          taskType: 'drawing',
+          taskId: 'first_drawing',
+        );
+      } catch (error) {
+        debugPrint('Could not save drawing activity: $error');
+      }
+    }
   }
 
   void _undo() {
@@ -90,7 +106,6 @@ class _DrawingPageState extends State<DrawingPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Drawing & Coloring'),
         backgroundColor: AppColors.purple,
         foregroundColor: Colors.white,
         actions: [

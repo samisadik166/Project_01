@@ -47,7 +47,23 @@ class _StarsBadgesPageState extends State<StarsBadgesPage> {
     }
   }
 
-  Stream<QuerySnapshot> _resultsStream() {
+  Stream<QuerySnapshot> _quizActivityStream() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      return const Stream.empty();
+    }
+
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('children')
+        .doc(widget.childId)
+        .collection('activityLog')
+        .where('taskType', isEqualTo: 'quiz')
+        .snapshots();
+  }
+
+  Stream<QuerySnapshot> _legacyResultsStream() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
       return const Stream.empty();
@@ -91,19 +107,57 @@ class _StarsBadgesPageState extends State<StarsBadgesPage> {
             final totalStars = starsSnapshot.data ?? 0;
 
             return StreamBuilder<QuerySnapshot>(
-              stream: _resultsStream(),
+              stream: _quizActivityStream(),
               builder: (context, resultsSnapshot) {
                 if (resultsSnapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
+                if (resultsSnapshot.hasError) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text(
+                        'Could not load quiz history. Please try again later.',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  );
+                }
 
-                final results = (resultsSnapshot.data?.docs ?? [])
-                    .map(ResultModel.fromDoc)
-                    .toList();
+                return StreamBuilder<QuerySnapshot>(
+                  stream: _legacyResultsStream(),
+                  builder: (context, legacyResultsSnapshot) {
+                    if (legacyResultsSnapshot.connectionState ==
+                        ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (legacyResultsSnapshot.hasError) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Text(
+                            'Could not load quiz history. Please try again later.',
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      );
+                    }
+                    final results = [
+                      ...(resultsSnapshot.data?.docs ?? []).map(
+                        ResultModel.fromActivityDoc,
+                      ),
+                      ...(legacyResultsSnapshot.data?.docs ?? []).map(
+                        ResultModel.fromDoc,
+                      ),
+                    ]..sort(
+                        (first, second) =>
+                            second.completedAt.compareTo(first.completedAt),
+                      );
+                    final recentResults = results.take(10).toList();
 
-                return ListView(
-                  padding: const EdgeInsets.all(20),
-                  children: [
+                    return ListView(
+                      padding: const EdgeInsets.all(20),
+                      children: [
                     // Total Stars Display
                     Container(
                       padding: const EdgeInsets.all(24),
@@ -163,7 +217,7 @@ class _StarsBadgesPageState extends State<StarsBadgesPage> {
                     ),
                     const SizedBox(height: 12),
 
-                    if (results.isEmpty)
+                    if (recentResults.isEmpty)
                       Container(
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
@@ -207,7 +261,7 @@ class _StarsBadgesPageState extends State<StarsBadgesPage> {
                         ),
                       )
                     else
-                      ...results.map(
+                      ...recentResults.map(
                         (result) => Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Container(
@@ -295,7 +349,9 @@ class _StarsBadgesPageState extends State<StarsBadgesPage> {
                           ),
                         ),
                       ),
-                  ],
+                      ],
+                    );
+                  },
                 );
               },
             );

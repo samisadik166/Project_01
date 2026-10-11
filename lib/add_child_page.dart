@@ -10,8 +10,13 @@ import 'model/child.dart';
 // ---------------------------------------------------------------------------
 class AddChildPage extends StatefulWidget {
   final String parentName;
+  final bool returnToPrevious;
 
-  const AddChildPage({super.key, required this.parentName});
+  const AddChildPage({
+    super.key,
+    required this.parentName,
+    this.returnToPrevious = false,
+  });
 
   @override
   State<AddChildPage> createState() => _AddChildPageState();
@@ -84,11 +89,23 @@ class _AddChildPageState extends State<AddChildPage> {
         createdAt: DateTime.now(),
       );
 
-      await childRef.set(child.toMap());
+      final batch = FirebaseFirestore.instance.batch();
+      batch.set(childRef, child.toMap());
+      batch.set(
+        FirebaseFirestore.instance.collection('users').doc(uid),
+        {'activeChildId': child.childId},
+        SetOptions(merge: true),
+      );
+      await batch.commit();
 
       debugPrint('Child added: ${child.childId}');
 
       if (!mounted) return;
+
+      if (widget.returnToPrevious) {
+        Navigator.of(context).pop(child.childId);
+        return;
+      }
 
       final childName = _nameController.text.trim();
 
@@ -134,7 +151,20 @@ class _AddChildPageState extends State<AddChildPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 10),
+                  IconButton(
+                    onPressed: _isLoading
+                        ? null
+                        : () => Navigator.of(context).maybePop(),
+                    tooltip: 'Go back',
+                    padding: EdgeInsets.zero,
+                    alignment: Alignment.centerLeft,
+                    icon: const Icon(
+                      Icons.arrow_back_rounded,
+                      color: Colors.white,
+                      size: 30,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
                   const Row(
                     children: [
                       Icon(

@@ -9,7 +9,6 @@ class DailyRemindersPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Daily Reminders'),
         backgroundColor: AppColors.purple,
         foregroundColor: Colors.white,
       ),

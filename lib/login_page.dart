@@ -281,7 +281,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    "Log in to continue the learning fun! 🌈",
+                    'Log in to continue the learning fun!',
                     style: TextStyle(fontSize: 15, color: Color(0xFF6B6B6B)),
                     textAlign: TextAlign.center,
                   ),

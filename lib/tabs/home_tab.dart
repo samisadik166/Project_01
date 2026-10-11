@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../model/child.dart';
 import '../utils/app_colors.dart';
@@ -21,67 +19,24 @@ import '../features/daily_reminders_page.dart';
 class HomeTab extends StatefulWidget {
   final String userName;
   final VoidCallback onLogout;
+  final List<ChildModel> children;
+  final String? selectedChildId;
+  final Future<void> Function([String?]) onChildrenChanged;
 
-  const HomeTab({super.key, required this.userName, required this.onLogout});
+  const HomeTab({
+    super.key,
+    required this.userName,
+    required this.onLogout,
+    required this.children,
+    required this.selectedChildId,
+    required this.onChildrenChanged,
+  });
 
   @override
   State<HomeTab> createState() => _HomeTabState();
 }
 
 class _HomeTabState extends State<HomeTab> {
-  late Future<ChildModel> _activeChildFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _activeChildFuture = _loadActiveChild();
-  }
-
-  Future<ChildModel> _loadActiveChild() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) {
-      return ChildModel(
-        childId: 'local',
-        name: widget.userName,
-        age: 0,
-        avatarId: 'bear_1',
-        createdAt: DateTime.now(),
-        totalStars: 0,
-      );
-    }
-
-    try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('children')
-          .orderBy('createdAt', descending: false)
-          .limit(1)
-          .get();
-
-      if (snapshot.docs.isNotEmpty) {
-        return ChildModel.fromDoc(snapshot.docs.first);
-      }
-    } catch (error) {
-      debugPrint('Could not load active child for home tab: $error');
-    }
-
-    return ChildModel(
-      childId: 'local',
-      name: widget.userName,
-      age: 0,
-      avatarId: 'bear_1',
-      createdAt: DateTime.now(),
-      totalStars: 0,
-    );
-  }
-
-  Future<void> _refreshActiveChild() async {
-    setState(() {
-      _activeChildFuture = _loadActiveChild();
-    });
-  }
-
   static const List<FeatureItem> _features = [
     FeatureItem('Alphabet', Icons.abc_rounded, AppColors.pink),
     FeatureItem('Numbers', Icons.pin_rounded, AppColors.yellow),
@@ -102,23 +57,31 @@ class _HomeTabState extends State<HomeTab> {
   ];
 
   Future<void> _navigateToFeature(BuildContext context, int index) async {
+    final childId = widget.selectedChildId;
+    if (childId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Add a child profile before starting an activity.')),
+      );
+      return;
+    }
+
     final routes = [
-      MaterialPageRoute(builder: (_) => const AlphabetPage()),
-      MaterialPageRoute(builder: (_) => const NumbersPage()),
+      MaterialPageRoute(builder: (_) => AlphabetPage(childId: childId)),
+      MaterialPageRoute(builder: (_) => NumbersPage(childId: childId)),
       MaterialPageRoute(builder: (_) => const ShapesColorsPage()),
       MaterialPageRoute(builder: (_) => const AnimalsPage()),
       MaterialPageRoute(builder: (_) => const FruitsVeggiesPage()),
       MaterialPageRoute(builder: (_) => const VehiclesPage()),
       MaterialPageRoute(builder: (_) => const StoriesPage()),
-      MaterialPageRoute(builder: (_) => const DrawingPage()),
-      MaterialPageRoute(builder: (_) => const QuizzesPage()),
-      MaterialPageRoute(builder: (_) => const GamesPage()),
+      MaterialPageRoute(builder: (_) => DrawingPage(childId: childId)),
+      MaterialPageRoute(builder: (_) => QuizzesPage(childId: childId)),
+      MaterialPageRoute(builder: (_) => GamesPage(childId: childId)),
       MaterialPageRoute(builder: (_) => const RewardsPage()),
       MaterialPageRoute(builder: (_) => const DailyRemindersPage()),
     ];
 
     await Navigator.of(context).push(routes[index]);
-    await _refreshActiveChild();
+    await widget.onChildrenChanged();
   }
 
   IconData _avatarIcon(String avatarId) {
@@ -151,74 +114,68 @@ class _HomeTabState extends State<HomeTab> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<ChildModel>(
-      future: _activeChildFuture,
-      builder: (context, snapshot) {
-        final child =
-            snapshot.data ??
-            ChildModel(
-              childId: 'local',
-              name: widget.userName,
-              age: 0,
-              avatarId: 'bear_1',
-              createdAt: DateTime.now(),
-              totalStars: 0,
-            );
+    final childIndex = widget.children.indexWhere(
+      (profile) => profile.childId == widget.selectedChildId,
+    );
+    final child = childIndex < 0 ? null : widget.children[childIndex];
+    final displayName = child?.name.trim().isNotEmpty == true
+        ? child!.name
+        : widget.userName;
+    final avatarId = child?.avatarId ?? 'bear_1';
+    final avatarColor = _avatarColor(avatarId);
 
-        final displayName = child.name.trim().isEmpty
-            ? widget.userName
-            : child.name;
-        final avatarColor = _avatarColor(child.avatarId);
-
-        return SafeArea(
-          child: CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 30),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        AppColors.yellow.withOpacity(0.92),
-                        AppColors.pink.withOpacity(0.78),
-                        AppColors.teal.withOpacity(0.7),
-                      ],
-                    ),
-                    borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(32),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.purple.withOpacity(0.12),
-                        blurRadius: 12,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
+    return SafeArea(
+      child: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 30),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.yellow.withOpacity(0.92),
+                    AppColors.pink.withOpacity(0.78),
+                    AppColors.teal.withOpacity(0.7),
+                  ],
+                ),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(32),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.purple.withOpacity(0.12),
+                    blurRadius: 12,
+                    offset: const Offset(0, 5),
                   ),
-                  child: Row(
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
                       Container(
-                        width: 62,
-                        height: 62,
+                        width: 66,
+                        height: 66,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.92),
+                          color: Colors.white.withOpacity(0.96),
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 3),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.08),
-                              blurRadius: 8,
+                              color: Colors.black.withOpacity(0.12),
+                              blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
                           ],
                         ),
                         child: Icon(
-                          _avatarIcon(child.avatarId),
+                          _avatarIcon(avatarId),
                           color: avatarColor,
-                          size: 32,
+                          size: 34,
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -228,37 +185,53 @@ class _HomeTabState extends State<HomeTab> {
                           children: [
                             Text(
                               'Hi, $displayName! 👋',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w800,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w900,
                                 color: Colors.white,
+                                shadows: [
+                                  Shadow(
+                                    color: Color(0x33000000),
+                                    offset: Offset(0, 2),
+                                    blurRadius: 6,
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 12,
                                 vertical: 8,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
+                                color: Colors.white.withOpacity(0.9),
                                 borderRadius: BorderRadius.circular(18),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.08),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   const Icon(
                                     Icons.star_rounded,
-                                    color: Colors.amber,
-                                    size: 18,
+                                    color: Color(0xFFFFC93C),
+                                    size: 20,
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    '${child.totalStars} stars',
+                                    '${child?.totalStars ?? 0} stars',
                                     style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w800,
-                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w900,
+                                      color: AppColors.darkGray,
                                     ),
                                   ),
                                 ],
@@ -267,40 +240,56 @@ class _HomeTabState extends State<HomeTab> {
                           ],
                         ),
                       ),
-                      IconButton(
-                        onPressed: widget.onLogout,
-                        tooltip: 'Log out',
-                        icon: const Icon(
-                          Icons.logout_rounded,
-                          color: Colors.white,
+                      const SizedBox(width: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.9),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: IconButton(
+                          onPressed: widget.onLogout,
+                          tooltip: 'Log out',
+                          splashRadius: 20,
+                          icon: const Icon(
+                            Icons.logout_rounded,
+                            color: AppColors.darkGray,
+                            size: 24,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
+                ],
               ),
-              SliverPadding(
-                padding: const EdgeInsets.all(20),
-                sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    mainAxisSpacing: 16,
-                    crossAxisSpacing: 16,
-                    childAspectRatio: 0.85,
-                  ),
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    final feature = _features[index];
-                    return FeatureTile(
-                      feature: feature,
-                      onTap: () async => _navigateToFeature(context, index),
-                    );
-                  }, childCount: _features.length),
-                ),
-              ),
-            ],
+            ),
           ),
-        );
-      },
+          SliverPadding(
+            padding: const EdgeInsets.all(20),
+            sliver: SliverGrid(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 16,
+                childAspectRatio: 0.85,
+              ),
+              delegate: SliverChildBuilderDelegate((context, index) {
+                final feature = _features[index];
+                return FeatureTile(
+                  feature: feature,
+                  onTap: () => _navigateToFeature(context, index),
+                );
+              }, childCount: _features.length),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

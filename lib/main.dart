@@ -255,7 +255,7 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                         SizedBox(height: 10),
                         Text(
-                          'Learning is fun! 🌈',
+                          'Learning is fun!',
                           style: TextStyle(
                             fontSize: 18,
                             color: Colors.white,

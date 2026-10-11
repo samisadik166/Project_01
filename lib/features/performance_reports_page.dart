@@ -89,7 +89,7 @@ class _PerformanceReportsPageState extends State<PerformanceReportsPage> {
               spacing: 18,
               runSpacing: 8,
               children: [
-                pw.Text('Stars: ${report.totalStars}'),
+                pw.Text('Total stars: ${report.totalStars}'),
                 pw.Text('Badges earned: ${report.badgesEarned}'),
                 pw.Text('Activities: ${report.activitiesCompleted}'),
                 pw.Text('Learning streak: ${report.learningStreak} days'),
@@ -98,10 +98,7 @@ class _PerformanceReportsPageState extends State<PerformanceReportsPage> {
             pw.SizedBox(height: 22),
             pw.Text(
               'Learning progress',
-              style: pw.TextStyle(
-                fontSize: 18,
-                fontWeight: pw.FontWeight.bold,
-              ),
+              style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
             ),
             pw.SizedBox(height: 8),
             ...report.subjects.map(
@@ -110,7 +107,9 @@ class _PerformanceReportsPageState extends State<PerformanceReportsPage> {
                 child: pw.Row(
                   children: [
                     pw.Expanded(child: pw.Text(subject.subject)),
-                    pw.Text('${subject.percentage}%  •  ${subject.encouragement}'),
+                    pw.Text(
+                      '${subject.percentage}%  •  ${subject.encouragement}',
+                    ),
                   ],
                 ),
               ),
@@ -118,10 +117,7 @@ class _PerformanceReportsPageState extends State<PerformanceReportsPage> {
             pw.SizedBox(height: 18),
             pw.Text(
               'Weekly activity',
-              style: pw.TextStyle(
-                fontSize: 18,
-                fontWeight: pw.FontWeight.bold,
-              ),
+              style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
             ),
             pw.Text(
               'Mon ${report.weeklyActivity[0]}   Tue ${report.weeklyActivity[1]}   '
@@ -176,15 +172,11 @@ class _PerformanceReportsPageState extends State<PerformanceReportsPage> {
                   );
                 }
                 if (snapshot.hasError) {
-                  return _ReportLoadError(
-                    onRetry: () => setState(_loadReport),
-                  );
+                  return _ReportLoadError(onRetry: () => setState(_loadReport));
                 }
                 final report = snapshot.data;
                 if (report == null) {
-                  return _ReportLoadError(
-                    onRetry: () => setState(_loadReport),
-                  );
+                  return _ReportLoadError(onRetry: () => setState(_loadReport));
                 }
                 return ProgressReportView(
                   report: report,

@@ -38,6 +38,26 @@ void main() {
     expect(id.startsWith('quiz_1_'), isTrue);
     expect(id.length > 'quiz_1_'.length, isTrue);
   });
+
+  test('ResultModel parses quiz activity log records', () {
+    final completedAt = DateTime(2026, 10, 11, 12);
+    final result = ResultModel.fromActivityDoc(
+      FakeDoc({
+        'taskType': 'quiz',
+        'taskId': 'animals',
+        'score': 6,
+        'totalQuestions': 8,
+        'stars': 2,
+        'completedAt': Timestamp.fromDate(completedAt),
+      }),
+    );
+
+    expect(result.quizId, 'animals');
+    expect(result.score, 6);
+    expect(result.totalQuestions, 8);
+    expect(result.stars, 2);
+    expect(result.completedAt, completedAt);
+  });
 }
 
 class FakeDoc implements DocumentSnapshot<Map<String, dynamic>> {

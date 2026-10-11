@@ -10,7 +10,9 @@ import '../features/stories_page.dart';
 
 /// Learn tab page - educational content
 class LearnTab extends StatelessWidget {
-  const LearnTab({super.key});
+  final String childId;
+
+  const LearnTab({super.key, required this.childId});
 
   static const List<FeatureItem> _items = [
     FeatureItem('Alphabet A–Z', Icons.abc_rounded, AppColors.pink),
@@ -23,8 +25,8 @@ class LearnTab extends StatelessWidget {
 
   void _navigateToFeature(BuildContext context, int index) {
     final routes = [
-      MaterialPageRoute(builder: (_) => const AlphabetPage()),
-      MaterialPageRoute(builder: (_) => const NumbersPage()),
+      MaterialPageRoute(builder: (_) => AlphabetPage(childId: childId)),
+      MaterialPageRoute(builder: (_) => NumbersPage(childId: childId)),
       MaterialPageRoute(builder: (_) => const ShapesColorsPage()),
       MaterialPageRoute(builder: (_) => const AnimalsPage()),
       MaterialPageRoute(builder: (_) => const FruitsVeggiesPage()),

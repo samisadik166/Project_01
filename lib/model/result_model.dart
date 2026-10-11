@@ -48,6 +48,20 @@ class ResultModel {
     );
   }
 
+  factory ResultModel.fromActivityDoc(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+
+    return ResultModel(
+      resultId: doc.id,
+      quizId: data['taskId']?.toString() ?? '',
+      score: (data['score'] as num?)?.toInt() ?? 0,
+      totalQuestions: (data['totalQuestions'] as num?)?.toInt() ?? 0,
+      stars: (data['stars'] as num?)?.toInt() ?? 0,
+      completedAt:
+          (data['completedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
+
   static String generateId(String quizId) {
     return '${quizId}_${DateTime.now().millisecondsSinceEpoch}';
   }

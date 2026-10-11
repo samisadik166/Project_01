@@ -6,7 +6,9 @@ import '../utils/reward_service.dart';
 /// Letter tracing page — kid draws each letter stroke by stroke, guided by
 /// dotted paths and a mascot that demonstrates before they try.
 class AlphabetPage extends StatefulWidget {
-  const AlphabetPage({super.key});
+  final String childId;
+
+  const AlphabetPage({super.key, required this.childId});
 
   @override
   State<AlphabetPage> createState() => _AlphabetPageState();
@@ -25,7 +27,7 @@ class TracingLetterData {
   const TracingLetterData(this.letter, this.color, this.strokes);
 }
 
-const double kCanvasSize = 280;
+const double kCanvasSize = 340;
 
 // All 26 letters are fully defined below, in A-Z order (this order controls
 // the swipe/strip order in the UI — keep it alphabetical when editing).
@@ -295,6 +297,8 @@ class _AlphabetPageState extends State<AlphabetPage> {
   @override
   Widget build(BuildContext context) {
     final current = _allLetters[_currentIndex];
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     return Scaffold(
       body: AnimatedContainer(
@@ -310,7 +314,7 @@ class _AlphabetPageState extends State<AlphabetPage> {
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 20, 0),
+                padding: EdgeInsets.fromLTRB(8, isLandscape ? 0 : 8, 20, 0),
                 child: Row(
                   children: [
                     IconButton(
@@ -336,23 +340,44 @@ class _AlphabetPageState extends State<AlphabetPage> {
                 ),
               ),
 
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
-                child: Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (var index = 0; index < _allLetters.length; index++)
-                      _LetterButton(
-                        letter: _allLetters[index].letter,
-                        color: _allLetters[index].color,
-                        selected: index == _currentIndex,
-                        onTap: () => _goTo(index),
-                      ),
-                  ],
+              if (isLandscape)
+                SizedBox(
+                  height: 44,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    children: [
+                      for (var index = 0; index < _allLetters.length; index++)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 3),
+                          child: _LetterButton(
+                            letter: _allLetters[index].letter,
+                            color: _allLetters[index].color,
+                            selected: index == _currentIndex,
+                            onTap: () => _goTo(index),
+                          ),
+                        ),
+                    ],
+                  ),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (var index = 0; index < _allLetters.length; index++)
+                        _LetterButton(
+                          letter: _allLetters[index].letter,
+                          color: _allLetters[index].color,
+                          selected: index == _currentIndex,
+                          onTap: () => _goTo(index),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
 
               Expanded(
                 child: PageView.builder(
@@ -365,6 +390,7 @@ class _AlphabetPageState extends State<AlphabetPage> {
                     data: _allLetters[index],
                     onComplete: () async {
                       await RewardService.awardTaskStarsForCurrentChild(
+                        childId: widget.childId,
                         taskType: 'alphabet',
                         taskId: _allLetters[index].letter,
                       );
@@ -381,9 +407,9 @@ class _AlphabetPageState extends State<AlphabetPage> {
               ),
 
               Padding(
-                padding: const EdgeInsets.symmetric(
+                padding: EdgeInsets.symmetric(
                   horizontal: 24,
-                  vertical: 16,
+                  vertical: isLandscape ? 6 : 16,
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -479,6 +505,7 @@ class _TracingCardState extends State<_TracingCard>
   bool _celebrating = false;
 
   late final AnimationController _demoController;
+  double _canvasSize = kCanvasSize;
 
   @override
   void initState() {
@@ -523,9 +550,9 @@ class _TracingCardState extends State<_TracingCard>
   Path _buildScaledPath(List<Offset> normPoints) {
     final path = Path();
     final first = normPoints.first;
-    path.moveTo(first.dx * kCanvasSize, first.dy * kCanvasSize);
+    path.moveTo(first.dx * _canvasSize, first.dy * _canvasSize);
     for (final p in normPoints.skip(1)) {
-      path.lineTo(p.dx * kCanvasSize, p.dy * kCanvasSize);
+      path.lineTo(p.dx * _canvasSize, p.dy * _canvasSize);
     }
     return path;
   }
@@ -548,7 +575,7 @@ class _TracingCardState extends State<_TracingCard>
     final guidePath = _buildScaledPath(widget.data.strokes[_activeStroke]);
     final samples = _sampleAlongPath(guidePath, 18);
     if (samples.isEmpty) return false;
-    const tolerance = kCanvasSize * 0.16;
+    final tolerance = _canvasSize * 0.16;
     int covered = 0;
     for (final gp in samples) {
       final hit = _drawnPoints.any((dp) => (dp - gp).distance < tolerance);
@@ -604,131 +631,180 @@ class _TracingCardState extends State<_TracingCard>
   @override
   Widget build(BuildContext context) {
     final hasStrokes = widget.data.strokes.isNotEmpty;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isLandscape =
+            MediaQuery.of(context).orientation == Orientation.landscape;
+        final canvasSize = isLandscape
+            ? (constraints.maxHeight - 12).clamp(150.0, 340.0).toDouble()
+            : (constraints.maxWidth - 32).clamp(180.0, 340.0).toDouble();
+        _canvasSize = canvasSize;
 
-    return SingleChildScrollView(
-      physics: const NeverScrollableScrollPhysics(),
-      child: Column(
-        children: [
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+        final mascot = Container(
+          padding: EdgeInsets.all(isLandscape ? 10 : 14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
-              child: Row(
-                children: [
-                  const Text('🐻', style: TextStyle(fontSize: 36)),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      _mascotMessage,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.darkGray,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            ],
           ),
-          const SizedBox(height: 20),
-
-          Text(
-            widget.data.letter,
-            style: const TextStyle(
-              fontSize: 40,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          GestureDetector(
-            onPanStart: _onPanStart,
-            onPanUpdate: _onPanUpdate,
-            onPanEnd: _onPanEnd,
-            child: Container(
-              width: kCanvasSize,
-              height: kCanvasSize,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
-                    blurRadius: 16,
-                    offset: const Offset(0, 8),
+          child: Row(
+            children: [
+              Text('🐻', style: TextStyle(fontSize: isLandscape ? 28 : 36)),
+              SizedBox(width: isLandscape ? 8 : 12),
+              Expanded(
+                child: Text(
+                  _mascotMessage,
+                  style: TextStyle(
+                    fontSize: isLandscape ? 12 : 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.darkGray,
                   ),
-                ],
-              ),
-              child: hasStrokes
-                  ? AnimatedBuilder(
-                      animation: _demoController,
-                      builder: (context, _) {
-                        return CustomPaint(
-                          painter: _TracingPainter(
-                            data: widget.data,
-                            activeStroke: _activeStroke,
-                            completedStrokes: _completedStrokes,
-                            drawnPoints: _drawnPoints,
-                            demoProgress: _demoController.value,
-                          ),
-                        );
-                      },
-                    )
-                  : const Center(
-                      child: Text('🚧', style: TextStyle(fontSize: 48)),
-                    ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          if (hasStrokes)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                for (int i = 0; i < widget.data.strokes.length; i++)
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _completedStrokes.contains(i)
-                          ? Colors.white
-                          : Colors.white.withOpacity(0.35),
-                    ),
-                  ),
-              ],
-            ),
-          const SizedBox(height: 12),
-
-          if (hasStrokes && !_celebrating)
-            TextButton.icon(
-              onPressed: _playDemo,
-              icon: const Icon(Icons.visibility_rounded, color: Colors.white),
-              label: const Text(
-                'Show Me Again',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
                 ),
               ),
+            ],
+          ),
+        );
+
+        final canvas = GestureDetector(
+          key: ValueKey('alphabet-tracing-canvas-${widget.data.letter}'),
+          onPanStart: _onPanStart,
+          onPanUpdate: _onPanUpdate,
+          onPanEnd: _onPanEnd,
+          child: Container(
+            width: canvasSize,
+            height: canvasSize,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
-        ],
-      ),
+            child: hasStrokes
+                ? AnimatedBuilder(
+                    animation: _demoController,
+                    builder: (context, _) => CustomPaint(
+                      painter: _TracingPainter(
+                        data: widget.data,
+                        activeStroke: _activeStroke,
+                        completedStrokes: _completedStrokes,
+                        drawnPoints: _drawnPoints,
+                        demoProgress: _demoController.value,
+                      ),
+                    ),
+                  )
+                : const Center(
+                    child: Text('🚧', style: TextStyle(fontSize: 48)),
+                  ),
+          ),
+        );
+
+        final strokeIndicators = Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (int i = 0; i < widget.data.strokes.length; i++)
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _completedStrokes.contains(i)
+                      ? Colors.white
+                      : Colors.white.withOpacity(0.35),
+                ),
+              ),
+          ],
+        );
+
+        final showDemo = hasStrokes && !_celebrating
+            ? TextButton.icon(
+                style: isLandscape
+                    ? TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                      )
+                    : null,
+                onPressed: _playDemo,
+                icon: const Icon(Icons.visibility_rounded, color: Colors.white),
+                label: const Text(
+                  'Show Me Again',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              )
+            : const SizedBox.shrink();
+
+        if (isLandscape) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      mascot,
+                      Text(
+                        widget.data.letter,
+                        style: const TextStyle(
+                          fontSize: 34,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                        ),
+                      ),
+                      if (hasStrokes) strokeIndicators,
+                      showDemo,
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                canvas,
+              ],
+            ),
+          );
+        }
+
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            children: [
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: mascot,
+              ),
+              const SizedBox(height: 20),
+              Text(
+                widget.data.letter,
+                style: const TextStyle(
+                  fontSize: 40,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 12),
+              canvas,
+              const SizedBox(height: 16),
+              if (hasStrokes) strokeIndicators,
+              const SizedBox(height: 12),
+              showDemo,
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -828,15 +904,29 @@ class _TracingPainter extends CustomPainter {
     if (drawnPoints.length > 1) {
       final drawnPath = Path()
         ..moveTo(drawnPoints.first.dx, drawnPoints.first.dy);
-      for (final p in drawnPoints.skip(1)) {
-        drawnPath.lineTo(p.dx, p.dy);
+      for (var i = 1; i < drawnPoints.length - 1; i++) {
+        final current = drawnPoints[i];
+        final next = drawnPoints[i + 1];
+        final midpoint = Offset(
+          (current.dx + next.dx) / 2,
+          (current.dy + next.dy) / 2,
+        );
+        drawnPath.quadraticBezierTo(
+          current.dx,
+          current.dy,
+          midpoint.dx,
+          midpoint.dy,
+        );
       }
+      drawnPath.lineTo(drawnPoints.last.dx, drawnPoints.last.dy);
       canvas.drawPath(
         drawnPath,
         Paint()
           ..color = AppColors.darkGray
           ..strokeWidth = 7
           ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..isAntiAlias = true
           ..style = PaintingStyle.stroke,
       );
     }

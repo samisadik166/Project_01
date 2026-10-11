@@ -8,7 +8,9 @@ import '../utils/feature_tile.dart';
 import '../utils/helpers.dart';
 
 class ProgressTab extends StatefulWidget {
-  const ProgressTab({super.key});
+  final String? childId;
+
+  const ProgressTab({super.key, required this.childId});
 
   @override
   State<ProgressTab> createState() => _ProgressTabState();
@@ -16,7 +18,6 @@ class ProgressTab extends StatefulWidget {
 
 class _ProgressTabState extends State<ProgressTab> {
   final ProgressRepository _repository = FirestoreProgressRepository();
-  late Future<String?> _activeChildIdFuture;
 
   static const List<FeatureItem> _items = [
     FeatureItem('Stars & Badges', Icons.star_rounded, AppColors.yellow),
@@ -27,12 +28,6 @@ class _ProgressTabState extends State<ProgressTab> {
       AppColors.teal,
     ),
   ];
-
-  @override
-  void initState() {
-    super.initState();
-    _activeChildIdFuture = _repository.loadActiveChildId();
-  }
 
   void _handleTileTap(String label, String childId) async {
     if (label == 'Stars & Badges') {
@@ -71,65 +66,49 @@ class _ProgressTabState extends State<ProgressTab> {
 
   @override
   Widget build(BuildContext context) {
+    final childId = widget.childId;
+    if (childId == null) {
+      return const SafeArea(
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'No child profile found yet.\nAdd a child to start tracking progress.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.darkGray,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return SafeArea(
-      child: FutureBuilder<String?>(
-        future: _activeChildIdFuture,
-        builder: (context, childSnapshot) {
-          if (childSnapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (childSnapshot.hasError) {
-            return const Center(
-              child: Text(
-                'Could not load progress right now. Please try again later.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: AppColors.darkGray),
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          const Text(
+            'Progress',
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              color: AppColors.darkGray,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ..._items.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: FeatureListTile(
+                item: item,
+                onTap: () => _handleTileTap(item.label, childId),
               ),
-            );
-          }
-
-          final childId = childSnapshot.data;
-          if (childId == null) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text(
-                  'No child profile found yet.\nAdd a child to start tracking progress.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.darkGray,
-                  ),
-                ),
-              ),
-            );
-          }
-
-          return ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              const Text(
-                'Progress',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.darkGray,
-                ),
-              ),
-              const SizedBox(height: 16),
-              ..._items.map(
-                (item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: FeatureListTile(
-                    item: item,
-                    onTap: () => _handleTileTap(item.label, childId),
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
+            ),
+          ),
+        ],
       ),
     );
   }

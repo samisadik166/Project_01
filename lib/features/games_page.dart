@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
 import '../utils/app_colors.dart';
+import '../utils/reward_service.dart';
 
 /// Interactive games page.
 class GamesPage extends StatelessWidget {
-  const GamesPage({super.key});
+  const GamesPage({
+    super.key,
+    required this.childId,
+    this.initialGameIndex,
+  });
+
+  final String childId;
+  final int? initialGameIndex;
 
   @override
   Widget build(BuildContext context) {
@@ -30,9 +38,17 @@ class GamesPage extends StatelessWidget {
         _GameKind.memory,
       ),
     ];
+
+    final selectedGame = initialGameIndex == null
+        ? null
+        : games[initialGameIndex!];
+
+    if (selectedGame != null) {
+      return _GameRoundPage(info: selectedGame, childId: childId);
+    }
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Interactive Games'),
         backgroundColor: AppColors.yellow,
         foregroundColor: Colors.white,
       ),
@@ -62,7 +78,8 @@ class GamesPage extends StatelessWidget {
                   info: game,
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => _GameRoundPage(info: game),
+                      builder: (_) =>
+                          _GameRoundPage(info: game, childId: childId),
                     ),
                   ),
                 ),
@@ -141,8 +158,9 @@ class _GameCard extends StatelessWidget {
 }
 
 class _GameRoundPage extends StatefulWidget {
-  const _GameRoundPage({required this.info});
+  const _GameRoundPage({required this.info, required this.childId});
   final _GameInfo info;
+  final String childId;
 
   @override
   State<_GameRoundPage> createState() => _GameRoundPageState();
@@ -152,6 +170,7 @@ class _GameRoundPageState extends State<_GameRoundPage> {
   int _target = 5;
   int _count = 0;
   int _colorTarget = 0;
+  int _colorCorrectTaps = 0;
   int? _firstCard;
   final Set<int> _matchedCards = {};
   final List<IconData> _memoryCards = [
@@ -182,7 +201,9 @@ class _GameRoundPageState extends State<_GameRoundPage> {
   ];
 
   void _tapStar() {
-    if (_count < _target) setState(() => _count++);
+    if (_count >= _target) return;
+    setState(() => _count++);
+    if (_count == _target) _recordGameCompletion('count_$_target');
   }
 
   void _nextNumber() => setState(() {
@@ -191,8 +212,15 @@ class _GameRoundPageState extends State<_GameRoundPage> {
   });
 
   void _tapColor(int index) {
-    if (index == _colorTarget)
-      setState(() => _colorTarget = (_colorTarget + 1) % colors.length);
+    if (index != _colorTarget) return;
+    setState(() {
+      _colorTarget = (_colorTarget + 1) % colors.length;
+      _colorCorrectTaps++;
+    });
+    if (_colorCorrectTaps == colors.length) {
+      _colorCorrectTaps = 0;
+      _recordGameCompletion('color_round');
+    }
   }
 
   void _tapMemory(int index) {
@@ -204,8 +232,23 @@ class _GameRoundPageState extends State<_GameRoundPage> {
         _matchedCards.addAll([_firstCard!, index]);
         _firstCard = null;
       });
+      if (_matchedCards.length == _memoryCards.length) {
+        _recordGameCompletion('memory_pairs');
+      }
     } else {
       setState(() => _firstCard = null);
+    }
+  }
+
+  Future<void> _recordGameCompletion(String taskId) async {
+    try {
+      await RewardService.awardTaskStarsForCurrentChild(
+        childId: widget.childId,
+        taskType: 'game',
+        taskId: taskId,
+      );
+    } catch (error) {
+      debugPrint('Could not save game activity: $error');
     }
   }
 

@@ -2,30 +2,35 @@ import 'package:flutter/material.dart';
 import '../utils/app_colors.dart';
 import '../utils/feature_tile.dart';
 import '../features/games_page.dart';
-import '../features/drawing_page.dart';
-import '../features/quizzes_page.dart';
 
 /// Play tab page - interactive activities
 class PlayTab extends StatelessWidget {
-  const PlayTab({super.key});
+  final String? childId;
+
+  const PlayTab({super.key, required this.childId});
 
   static const List<FeatureItem> _items = [
-    FeatureItem(
-      'Interactive Games',
-      Icons.sports_esports_rounded,
-      AppColors.yellow,
-    ),
-    FeatureItem('Drawing & Coloring', Icons.brush_rounded, AppColors.purple),
-    FeatureItem('Quizzes', Icons.quiz_rounded, AppColors.pink),
+    FeatureItem('Count the Stars', Icons.star_rounded, AppColors.yellow),
+    FeatureItem('Find the Color', Icons.palette_rounded, AppColors.teal),
+    FeatureItem('Memory Match', Icons.grid_view_rounded, AppColors.purple),
   ];
 
   void _navigateToFeature(BuildContext context, int index) {
-    final routes = [
-      MaterialPageRoute(builder: (_) => const GamesPage()),
-      MaterialPageRoute(builder: (_) => const DrawingPage()),
-      MaterialPageRoute(builder: (_) => const QuizzesPage()),
-    ];
-    Navigator.of(context).push(routes[index]);
+    final selectedChildId = childId;
+    if (selectedChildId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Add a child profile before starting a game.')),
+      );
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => GamesPage(
+          childId: selectedChildId,
+          initialGameIndex: index,
+        ),
+      ),
+    );
   }
 
   @override

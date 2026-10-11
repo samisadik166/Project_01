@@ -9,7 +9,6 @@ class VehiclesPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Vehicles'),
         backgroundColor: AppColors.yellow,
         foregroundColor: Colors.white,
       ),

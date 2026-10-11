@@ -9,7 +9,6 @@ class StoriesPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Stories & Audio'),
         backgroundColor: AppColors.teal,
         foregroundColor: Colors.white,
       ),

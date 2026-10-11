@@ -34,7 +34,7 @@ class ProgressReportView extends StatelessWidget {
             final columns = constraints.maxWidth > 580 ? 4 : 2;
             final cards = [
               _SummaryCard(
-                title: 'Stars',
+                title: 'Total stars',
                 value: '${report.totalStars}',
                 icon: Icons.star_rounded,
                 color: AppColors.yellow,
