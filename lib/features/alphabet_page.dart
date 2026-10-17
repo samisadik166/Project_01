@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../utils/app_colors.dart';
@@ -499,6 +500,7 @@ class _TracingCard extends StatefulWidget {
 class _TracingCardState extends State<_TracingCard>
     with TickerProviderStateMixin {
   int _activeStroke = 0;
+  int? _activePointer;
   final Set<int> _completedStrokes = {};
   List<Offset> _drawnPoints = [];
   String _mascotMessage = '';
@@ -584,17 +586,26 @@ class _TracingCardState extends State<_TracingCard>
     return covered / samples.length >= 0.6;
   }
 
-  void _onPanStart(DragStartDetails details) {
-    if (widget.data.strokes.isEmpty || _celebrating) return;
-    setState(() => _drawnPoints = [details.localPosition]);
+  void _onPointerDown(PointerDownEvent event) {
+    if (_activePointer != null || widget.data.strokes.isEmpty || _celebrating) {
+      return;
+    }
+    _activePointer = event.pointer;
+    setState(() => _drawnPoints = [event.localPosition]);
   }
 
-  void _onPanUpdate(DragUpdateDetails details) {
-    if (widget.data.strokes.isEmpty || _celebrating) return;
-    setState(() => _drawnPoints.add(details.localPosition));
+  void _onPointerMove(PointerMoveEvent event) {
+    if (event.pointer != _activePointer ||
+        widget.data.strokes.isEmpty ||
+        _celebrating) {
+      return;
+    }
+    setState(() => _drawnPoints.add(event.localPosition));
   }
 
-  Future<void> _onPanEnd(DragEndDetails details) async {
+  Future<void> _onPointerUp(PointerUpEvent event) async {
+    if (event.pointer != _activePointer) return;
+    _activePointer = null;
     if (widget.data.strokes.isEmpty || _celebrating) return;
 
     final passed = _checkStroke();
@@ -626,6 +637,12 @@ class _TracingCardState extends State<_TracingCard>
         _mascotMessage = "Almost! Follow the dots closely — try again! 💪";
       });
     }
+  }
+
+  void _onPointerCancel(PointerCancelEvent event) {
+    if (event.pointer != _activePointer) return;
+    _activePointer = null;
+    setState(() => _drawnPoints = []);
   }
 
   @override
@@ -671,41 +688,52 @@ class _TracingCardState extends State<_TracingCard>
           ),
         );
 
-        final canvas = GestureDetector(
-          key: ValueKey('alphabet-tracing-canvas-${widget.data.letter}'),
-          onPanStart: _onPanStart,
-          onPanUpdate: _onPanUpdate,
-          onPanEnd: _onPanEnd,
-          child: Container(
-            width: canvasSize,
-            height: canvasSize,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
-                  blurRadius: 16,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: hasStrokes
-                ? AnimatedBuilder(
-                    animation: _demoController,
-                    builder: (context, _) => CustomPaint(
-                      painter: _TracingPainter(
-                        data: widget.data,
-                        activeStroke: _activeStroke,
-                        completedStrokes: _completedStrokes,
-                        drawnPoints: _drawnPoints,
-                        demoProgress: _demoController.value,
-                      ),
-                    ),
-                  )
-                : const Center(
-                    child: Text('🚧', style: TextStyle(fontSize: 48)),
+        final canvas = RawGestureDetector(
+          gestures: hasStrokes && !_celebrating
+              ? {
+                  EagerGestureRecognizer:
+                      GestureRecognizerFactoryWithHandlers<
+                        EagerGestureRecognizer
+                      >(() => EagerGestureRecognizer(), (instance) {}),
+                }
+              : const {},
+          child: Listener(
+            key: ValueKey('alphabet-tracing-canvas-${widget.data.letter}'),
+            onPointerDown: _onPointerDown,
+            onPointerMove: _onPointerMove,
+            onPointerUp: _onPointerUp,
+            onPointerCancel: _onPointerCancel,
+            child: Container(
+              width: canvasSize,
+              height: canvasSize,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 16,
+                    offset: const Offset(0, 8),
                   ),
+                ],
+              ),
+              child: hasStrokes
+                  ? AnimatedBuilder(
+                      animation: _demoController,
+                      builder: (context, _) => CustomPaint(
+                        painter: _TracingPainter(
+                          data: widget.data,
+                          activeStroke: _activeStroke,
+                          completedStrokes: _completedStrokes,
+                          drawnPoints: _drawnPoints,
+                          demoProgress: _demoController.value,
+                        ),
+                      ),
+                    )
+                  : const Center(
+                      child: Text('🚧', style: TextStyle(fontSize: 48)),
+                    ),
+            ),
           ),
         );
 
@@ -904,21 +932,22 @@ class _TracingPainter extends CustomPainter {
     if (drawnPoints.length > 1) {
       final drawnPath = Path()
         ..moveTo(drawnPoints.first.dx, drawnPoints.first.dy);
-      for (var i = 1; i < drawnPoints.length - 1; i++) {
-        final current = drawnPoints[i];
-        final next = drawnPoints[i + 1];
-        final midpoint = Offset(
-          (current.dx + next.dx) / 2,
-          (current.dy + next.dy) / 2,
-        );
-        drawnPath.quadraticBezierTo(
-          current.dx,
-          current.dy,
-          midpoint.dx,
-          midpoint.dy,
+      for (var i = 0; i < drawnPoints.length - 1; i++) {
+        final start = drawnPoints[i];
+        final end = drawnPoints[i + 1];
+        final previous = i == 0 ? start : drawnPoints[i - 1];
+        final next = i + 2 < drawnPoints.length ? drawnPoints[i + 2] : end;
+        final control1 = start + (end - previous) / 6;
+        final control2 = end - (next - start) / 6;
+        drawnPath.cubicTo(
+          control1.dx,
+          control1.dy,
+          control2.dx,
+          control2.dy,
+          end.dx,
+          end.dy,
         );
       }
-      drawnPath.lineTo(drawnPoints.last.dx, drawnPoints.last.dy);
       canvas.drawPath(
         drawnPath,
         Paint()

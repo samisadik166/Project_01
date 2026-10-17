@@ -727,21 +727,22 @@ class _NumberTracingPainter extends CustomPainter {
     if (drawnPoints.length > 1) {
       final drawnPath = Path()
         ..moveTo(drawnPoints.first.dx, drawnPoints.first.dy);
-      for (var i = 1; i < drawnPoints.length - 1; i++) {
-        final current = drawnPoints[i];
-        final next = drawnPoints[i + 1];
-        final midpoint = Offset(
-          (current.dx + next.dx) / 2,
-          (current.dy + next.dy) / 2,
-        );
-        drawnPath.quadraticBezierTo(
-          current.dx,
-          current.dy,
-          midpoint.dx,
-          midpoint.dy,
+      for (var i = 0; i < drawnPoints.length - 1; i++) {
+        final start = drawnPoints[i];
+        final end = drawnPoints[i + 1];
+        final previous = i == 0 ? start : drawnPoints[i - 1];
+        final next = i + 2 < drawnPoints.length ? drawnPoints[i + 2] : end;
+        final control1 = start + (end - previous) / 6;
+        final control2 = end - (next - start) / 6;
+        drawnPath.cubicTo(
+          control1.dx,
+          control1.dy,
+          control2.dx,
+          control2.dy,
+          end.dx,
+          end.dy,
         );
       }
-      drawnPath.lineTo(drawnPoints.last.dx, drawnPoints.last.dy);
       canvas.drawPath(
         drawnPath,
         Paint()

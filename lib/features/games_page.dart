@@ -4,11 +4,7 @@ import '../utils/reward_service.dart';
 
 /// Interactive games page.
 class GamesPage extends StatelessWidget {
-  const GamesPage({
-    super.key,
-    required this.childId,
-    this.initialGameIndex,
-  });
+  const GamesPage({super.key, required this.childId, this.initialGameIndex});
 
   final String childId;
   final int? initialGameIndex;
@@ -171,6 +167,7 @@ class _GameRoundPageState extends State<_GameRoundPage> {
   int _count = 0;
   int _colorTarget = 0;
   int _colorCorrectTaps = 0;
+  String? _colorFeedback;
   int? _firstCard;
   final Set<int> _matchedCards = {};
   final List<IconData> _memoryCards = [
@@ -212,15 +209,35 @@ class _GameRoundPageState extends State<_GameRoundPage> {
   });
 
   void _tapColor(int index) {
-    if (index != _colorTarget) return;
+    if (_colorCorrectTaps >= colors.length) return;
+    final colorIndex = (index + _colorCorrectTaps * 2) % colors.length;
+    if (colorIndex != _colorTarget) {
+      setState(() {
+        _colorFeedback = 'Almost! Find ${colorNames[_colorTarget]} again.';
+      });
+      return;
+    }
+
     setState(() {
-      _colorTarget = (_colorTarget + 1) % colors.length;
       _colorCorrectTaps++;
+      _colorFeedback = _colorCorrectTaps == colors.length
+          ? 'Color champion! You found them all!'
+          : 'Great finding! Now look for ${colorNames[_colorCorrectTaps]}.';
+      if (_colorCorrectTaps < colors.length) {
+        _colorTarget = _colorCorrectTaps;
+      }
     });
     if (_colorCorrectTaps == colors.length) {
-      _colorCorrectTaps = 0;
       _recordGameCompletion('color_round');
     }
+  }
+
+  void _restartColorRound() {
+    setState(() {
+      _colorTarget = 0;
+      _colorCorrectTaps = 0;
+      _colorFeedback = null;
+    });
   }
 
   void _tapMemory(int index) {
@@ -277,73 +294,460 @@ class _GameRoundPageState extends State<_GameRoundPage> {
     }
   }
 
-  Widget _countGame() => Column(
-    children: [
-      Text('Tap $_target stars', style: const TextStyle(fontSize: 22)),
-      const SizedBox(height: 12),
-      Text(
-        '$_count / $_target',
-        style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
-      ),
-      Expanded(
-        child: Center(
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: List.generate(
-              _target,
-              (i) => IconButton(
-                onPressed: _tapStar,
-                icon: Icon(
-                  i < _count ? Icons.star : Icons.star_border,
-                  color: AppColors.yellow,
+  Widget _countGame() => LayoutBuilder(
+    builder: (context, constraints) {
+      final compact = constraints.maxHeight < 500;
+      final complete = _count == _target;
+
+      return Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(compact ? 12 : 20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.yellow,
+                  AppColors.yellow.withValues(alpha: 0.78),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(28),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.yellow.withValues(alpha: 0.3),
+                  blurRadius: 16,
+                  offset: const Offset(0, 7),
                 ),
-                iconSize: 58,
+              ],
+            ),
+            child: Row(
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Color(0x44FFFFFF),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(compact ? 8 : 12),
+                    child: Icon(
+                      Icons.auto_awesome_rounded,
+                      color: AppColors.darkGray,
+                      size: compact ? 26 : 34,
+                    ),
+                  ),
+                ),
+                SizedBox(width: compact ? 10 : 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        complete ? 'Star catcher!' : 'Ready, star catcher?',
+                        style: TextStyle(
+                          color: AppColors.darkGray,
+                          fontSize: compact ? 18 : 21,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        complete
+                            ? 'You caught them all! ⭐'
+                            : 'Catch $_target twinkly stars!',
+                        style: const TextStyle(
+                          color: AppColors.darkGray,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: compact ? 10 : 20),
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? 12 : 18,
+              vertical: compact ? 10 : 14,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Your star pocket',
+                      style: TextStyle(
+                        color: AppColors.darkGray,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      transitionBuilder: (child, animation) =>
+                          ScaleTransition(scale: animation, child: child),
+                      child: Text(
+                        '$_count / $_target',
+                        key: ValueKey('star-count-$_count'),
+                        style: TextStyle(
+                          color: AppColors.darkGray,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: compact ? 7 : 10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: LinearProgressIndicator(
+                    value: _count / _target,
+                    minHeight: 12,
+                    backgroundColor: AppColors.yellow.withValues(alpha: 0.18),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      AppColors.yellow,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: compact ? 8 : 12),
+          Expanded(
+            child: Center(
+              child: Wrap(
+                alignment: WrapAlignment.center,
+                spacing: compact ? 8 : 12,
+                runSpacing: compact ? 6 : 10,
+                children: List.generate(_target, (i) {
+                  final collected = i < _count;
+                  return Semantics(
+                    button: true,
+                    label: 'Star ${i + 1}${collected ? ', caught' : ''}',
+                    child: InkWell(
+                      key: ValueKey('count-star-$i'),
+                      onTap: collected ? null : _tapStar,
+                      borderRadius: BorderRadius.circular(24),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeOutBack,
+                        width: compact ? 54 : 66,
+                        height: compact ? 54 : 66,
+                        decoration: BoxDecoration(
+                          color: collected
+                              ? AppColors.yellow.withValues(alpha: 0.22)
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(
+                            color: collected
+                                ? AppColors.yellow
+                                : AppColors.yellow.withValues(alpha: 0.28),
+                            width: collected ? 2.5 : 1.5,
+                          ),
+                          boxShadow: collected
+                              ? [
+                                  BoxShadow(
+                                    color: AppColors.yellow.withValues(
+                                      alpha: 0.22,
+                                    ),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: AnimatedScale(
+                          scale: collected ? 1.12 : 1,
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOutBack,
+                          child: Icon(
+                            collected
+                                ? Icons.star_rounded
+                                : Icons.star_outline_rounded,
+                            color: AppColors.yellow,
+                            size: compact ? 38 : 46,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
               ),
             ),
           ),
-        ),
-      ),
-      _button(
-        _count == _target ? 'Next Number' : 'Keep Counting',
-        Icons.star,
-        _count == _target ? _nextNumber : null,
-      ),
-    ],
+          if (complete)
+            _button(
+              'Catch more stars!',
+              Icons.auto_awesome_rounded,
+              _nextNumber,
+            )
+          else
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8, top: 4),
+              child: Text(
+                'Tap each star to catch it!',
+                style: TextStyle(
+                  color: AppColors.darkGray,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+        ],
+      );
+    },
   );
 
-  Widget _colorGame() => Column(
-    children: [
-      Text(
-        'Tap the ${colorNames[_colorTarget]} circle',
-        style: const TextStyle(fontSize: 22),
-      ),
-      Expanded(
-        child: Center(
-          child: Wrap(
-            spacing: 18,
-            runSpacing: 18,
-            children: List.generate(
-              colors.length,
-              (i) => InkWell(
-                onTap: () => _tapColor(i),
-                child: CircleAvatar(
-                  radius: 42,
-                  backgroundColor: colors[i],
-                  child: i == _colorTarget
-                      ? const Icon(Icons.touch_app, color: Colors.white)
-                      : null,
+  Widget _colorGame() => LayoutBuilder(
+    builder: (context, constraints) {
+      final compact = constraints.maxHeight < 500;
+      final complete = _colorCorrectTaps == colors.length;
+
+      return Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(compact ? 12 : 18),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [AppColors.teal, AppColors.sky],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(26),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.teal.withValues(alpha: 0.28),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
                 ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: compact ? 48 : 58,
+                  height: compact ? 48 : 58,
+                  decoration: const BoxDecoration(
+                    color: Color(0x44FFFFFF),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    complete
+                        ? Icons.emoji_events_rounded
+                        : Icons.color_lens_rounded,
+                    color: AppColors.darkGray,
+                    size: compact ? 28 : 34,
+                  ),
+                ),
+                SizedBox(width: compact ? 10 : 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        complete ? 'Color champion!' : 'Color quest',
+                        style: TextStyle(
+                          color: AppColors.darkGray,
+                          fontSize: compact ? 19 : 22,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              complete
+                                  ? 'You found every color!'
+                                  : 'Find this color:',
+                              style: const TextStyle(
+                                color: AppColors.darkGray,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          if (!complete) ...[
+                            const SizedBox(width: 7),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Text(
+                                colorNames[_colorTarget].toUpperCase(),
+                                style: TextStyle(
+                                  color: colors[_colorTarget],
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: compact ? 10 : 16),
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? 12 : 16,
+              vertical: compact ? 9 : 12,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Colors found',
+                      style: TextStyle(
+                        color: AppColors.darkGray,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      '$_colorCorrectTaps / ${colors.length}',
+                      style: const TextStyle(
+                        color: AppColors.darkGray,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: List.generate(
+                    colors.length,
+                    (i) => Expanded(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 220),
+                        height: 9,
+                        margin: EdgeInsets.only(
+                          right: i == colors.length - 1 ? 0 : 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: i < _colorCorrectTaps
+                              ? colors[i]
+                              : colors[i].withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Center(
+              child: Wrap(
+                alignment: WrapAlignment.center,
+                spacing: compact ? 10 : 14,
+                runSpacing: compact ? 8 : 12,
+                children: List.generate(colors.length, (slot) {
+                  final colorIndex =
+                      (slot + _colorCorrectTaps * 2) % colors.length;
+                  return Semantics(
+                    button: !complete,
+                    label: '${colorNames[colorIndex]} color',
+                    child: InkWell(
+                      key: ValueKey('color-choice-$slot'),
+                      onTap: complete ? null : () => _tapColor(slot),
+                      borderRadius: BorderRadius.circular(22),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 240),
+                        curve: Curves.easeOutBack,
+                        width: compact ? 76 : 88,
+                        height: compact ? 76 : 88,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(
+                            color: colors[colorIndex].withValues(alpha: 0.35),
+                            width: 2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: colors[colorIndex].withValues(alpha: 0.15),
+                              blurRadius: 9,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 240),
+                            width: compact ? 48 : 56,
+                            height: compact ? 48 : 56,
+                            decoration: BoxDecoration(
+                              color: colors[colorIndex],
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              colorIndex == _colorTarget && !complete
+                                  ? Icons.touch_app_rounded
+                                  : Icons.star_rounded,
+                              color: Colors.white,
+                              size: compact ? 27 : 32,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
               ),
             ),
           ),
-        ),
-      ),
-      const Text(
-        'Keep going!',
-        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-      ),
-    ],
+          if (complete)
+            _button(
+              'Play again',
+              Icons.refresh_rounded,
+              _restartColorRound,
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8, top: 4),
+              child: Text(
+                _colorFeedback ?? 'Look carefully — the colors can move!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _colorFeedback?.startsWith('Almost') == true
+                      ? AppColors.orange
+                      : AppColors.darkGray,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+        ],
+      );
+    },
   );
 
   Widget _memoryGame() => Column(

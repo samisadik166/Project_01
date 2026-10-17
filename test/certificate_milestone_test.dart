@@ -39,6 +39,9 @@ void main() {
   testWidgets('certificate card changes from locked to preview when earned', (
     WidgetTester tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(393, 852));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     final repository = _FakeProgressRepository(49);
     await tester.pumpWidget(
       MaterialApp(
@@ -65,6 +68,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Certificate preview'), findsOneWidget);
     expect(find.text('Certificate of Achievement'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }
 
