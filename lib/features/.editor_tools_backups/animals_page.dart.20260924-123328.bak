@@ -1,0 +1,228 @@
+import 'package:flutter/material.dart';
+import '../utils/app_colors.dart';
+
+class _Animal {
+  final String name;
+  final String emoji;
+  final String sound;
+  final String fact;
+
+  const _Animal({
+    required this.name,
+    required this.emoji,
+    required this.sound,
+    required this.fact,
+  });
+}
+
+const List<_Animal> _animals = [
+  _Animal(
+    name: 'Dog',
+    emoji: '🐶',
+    sound: 'Woof!',
+    fact: 'Dogs are loyal friends who love to play fetch and wag their tails when they are happy!',
+  ),
+  _Animal(
+    name: 'Cat',
+    emoji: '🐱',
+    sound: 'Meow!',
+    fact: 'Cats love to purr when they are happy and use their whiskers to feel around them.',
+  ),
+  _Animal(
+    name: 'Cow',
+    emoji: '🐮',
+    sound: 'Moo!',
+    fact: 'Cows give us milk and love to eat grass in the fields all day long.',
+  ),
+  _Animal(
+    name: 'Monkey',
+    emoji: '🐵',
+    sound: 'Ooh ooh ah ah!',
+    fact: 'Monkeys love bananas and use their tails to swing across branches!',
+  ),
+  _Animal(
+    name: 'Lion',
+    emoji: '🦁',
+    sound: 'Roar!',
+    fact: 'Lions are called the king of the jungle and live in big family groups called prides.',
+  ),
+  _Animal(
+    name: 'Duck',
+    emoji: '🦆',
+    sound: 'Quack!',
+    fact: 'Ducks love to swim in ponds and have waterproof feathers to stay dry.',
+  ),
+  _Animal(
+    name: 'Sheep',
+    emoji: '🐑',
+    sound: 'Baa!',
+    fact: 'Sheep have soft woolly coats that we use to make warm sweaters and blankets.',
+  ),
+  _Animal(
+    name: 'Frog',
+    emoji: '🐸',
+    sound: 'Ribbit!',
+    fact: 'Frogs can jump really far and catch flies with their long sticky tongues!',
+  ),
+  _Animal(
+    name: 'Pig',
+    emoji: '🐷',
+    sound: 'Oink!',
+    fact: 'Pigs are very smart animals and love to roll around in mud to stay cool.',
+  ),
+];
+
+/// Animals learning page
+class AnimalsPage extends StatelessWidget {
+  const AnimalsPage({super.key});
+
+  void _showAnimalInfo(BuildContext context, _Animal animal) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Row(
+          children: [
+            Text(animal.emoji, style: const TextStyle(fontSize: 32)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                animal.name,
+                style: const TextStyle(
+                  color: AppColors.darkGray,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.purple.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.volume_up_rounded,
+                      color: AppColors.purple, size: 28),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Sound: ${animal.sound}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.purple,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              animal.fact,
+              style: const TextStyle(
+                fontSize: 15,
+                color: AppColors.darkGray,
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text(
+              'Close',
+              style: TextStyle(color: AppColors.purple, fontSize: 16),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Animals'),
+        backgroundColor: AppColors.purple,
+        foregroundColor: Colors.white,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: GridView.builder(
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            childAspectRatio: 0.85,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+          ),
+          itemCount: _animals.length,
+          itemBuilder: (context, index) {
+            final animal = _animals[index];
+            return GestureDetector(
+              onTap: () => _showAnimalInfo(context, animal),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      animal.emoji,
+                      style: const TextStyle(fontSize: 64),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      animal.name,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.darkGray,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.purple.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        animal.sound,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.purple,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}

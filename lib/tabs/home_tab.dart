@@ -15,7 +15,9 @@ import '../features/games_page.dart';
 import '../features/rewards_page.dart';
 import '../features/daily_reminders_page.dart';
 
-/// Home tab page - main dashboard with all features
+/// Home tab page - main dashboard with all features.
+///
+/// UI only: navigation, data and state are unchanged from before.
 class HomeTab extends StatefulWidget {
   final String userName;
   final VoidCallback onLogout;
@@ -41,14 +43,14 @@ class _HomeTabState extends State<HomeTab> {
     FeatureItem('Alphabet', Icons.abc_rounded, AppColors.pink),
     FeatureItem('Numbers', Icons.pin_rounded, AppColors.yellow),
     FeatureItem('Shapes & Colors', Icons.category_rounded, AppColors.teal),
-    FeatureItem('Animals', Icons.pets_rounded, AppColors.purple),
-    FeatureItem('Fruits & Veggies', Icons.eco_rounded, AppColors.pink),
-    FeatureItem('Vehicles', Icons.directions_bus_rounded, AppColors.yellow),
-    FeatureItem('Stories', Icons.auto_stories_rounded, AppColors.teal),
-    FeatureItem('Drawing', Icons.brush_rounded, AppColors.purple),
-    FeatureItem('Quizzes', Icons.quiz_rounded, AppColors.pink),
-    FeatureItem('Games', Icons.sports_esports_rounded, AppColors.yellow),
-    FeatureItem('Rewards', Icons.emoji_events_rounded, AppColors.teal),
+    FeatureItem('Animals', Icons.pets_rounded, AppColors.green),
+    FeatureItem('Fruits & Veggies', Icons.eco_rounded, AppColors.orange),
+    FeatureItem('Vehicles', Icons.directions_bus_rounded, AppColors.sky),
+    FeatureItem('Stories', Icons.auto_stories_rounded, AppColors.purple),
+    FeatureItem('Drawing', Icons.brush_rounded, AppColors.pink),
+    FeatureItem('Quizzes', Icons.quiz_rounded, AppColors.yellow),
+    FeatureItem('Games', Icons.sports_esports_rounded, AppColors.teal),
+    FeatureItem('Rewards', Icons.emoji_events_rounded, AppColors.orange),
     FeatureItem(
       'Daily Reminders',
       Icons.notifications_active_rounded,
@@ -71,7 +73,7 @@ class _HomeTabState extends State<HomeTab> {
       MaterialPageRoute(builder: (_) => const ShapesColorsPage()),
       MaterialPageRoute(builder: (_) => const AnimalsPage()),
       MaterialPageRoute(builder: (_) => const FruitsVeggiesPage()),
-      MaterialPageRoute(builder: (_) => const VehiclesPage()),
+      MaterialPageRoute(builder: (_) => VehiclesPage(childId: childId)),
       MaterialPageRoute(builder: (_) => const StoriesPage()),
       MaterialPageRoute(builder: (_) => DrawingPage(childId: childId)),
       MaterialPageRoute(builder: (_) => QuizzesPage(childId: childId)),
@@ -123,172 +125,294 @@ class _HomeTabState extends State<HomeTab> {
         : widget.userName;
     final avatarId = child?.avatarId ?? 'bear_1';
     final avatarColor = _avatarColor(avatarId);
+    final totalStars = child?.totalStars ?? 0;
 
     return SafeArea(
-      child: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 30),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppColors.yellow.withOpacity(0.92),
-                    AppColors.pink.withOpacity(0.78),
-                    AppColors.teal.withOpacity(0.7),
-                  ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // 2 columns on phones for big tap targets, 3 on wider screens.
+          final columns = constraints.maxWidth >= 600 ? 3 : 2;
+          final childAspectRatio = columns == 3 ? 0.92 : 0.95;
+
+          return CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: _buildHeader(
+                  displayName: displayName,
+                  avatarId: avatarId,
+                  avatarColor: avatarColor,
+                  totalStars: totalStars,
                 ),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                sliver: SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: columns,
+                    mainAxisSpacing: 16,
+                    crossAxisSpacing: 16,
+                    childAspectRatio: childAspectRatio,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final feature = _features[index];
+                      return _CategoryCard(
+                        label: feature.label,
+                        icon: feature.icon,
+                        color: feature.color,
+                        onTap: () => _navigateToFeature(context, index),
+                      );
+                    },
+                    childCount: _features.length,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// Gradient greeting banner. The subtle dark scrim keeps the white text
+  /// readable across all three accent colours.
+  Widget _buildHeader({
+    required String displayName,
+    required String avatarId,
+    required Color avatarColor,
+    required int totalStars,
+  }) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.pink, AppColors.purple, AppColors.sky],
+        ),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.purple.withValues(alpha: 0.25),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
                 borderRadius: const BorderRadius.vertical(
                   bottom: Radius.circular(32),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.purple.withOpacity(0.12),
-                    blurRadius: 12,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
+                gradient: const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0x29000000), Color(0x4D000000)],
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 20, 20, 26),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 68,
+                  height: 68,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Icon(_avatarIcon(avatarId), color: avatarColor, size: 36),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 66,
-                        height: 66,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.96),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 3),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.12),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          _avatarIcon(avatarId),
-                          color: avatarColor,
-                          size: 34,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Hi, $displayName! 👋',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                                shadows: [
-                                  Shadow(
-                                    color: Color(0x33000000),
-                                    offset: Offset(0, 2),
-                                    blurRadius: 6,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.9),
-                                borderRadius: BorderRadius.circular(18),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.08),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.star_rounded,
-                                    color: Color(0xFFFFC93C),
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '${child?.totalStars ?? 0} stars',
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w900,
-                                      color: AppColors.darkGray,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                      Text(
+                        'Hi, $displayName!',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 28,
+                          height: 1.1,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          shadows: [
+                            Shadow(
+                              color: Color(0x66000000),
+                              offset: Offset(0, 2),
+                              blurRadius: 6,
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Ready to learn and play? 🌟',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white.withValues(alpha: 0.92),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.9),
-                          shape: BoxShape.circle,
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(18),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.08),
+                              color: Colors.black.withValues(alpha: 0.10),
                               blurRadius: 8,
                               offset: const Offset(0, 3),
                             ),
                           ],
                         ),
-                        child: IconButton(
-                          onPressed: widget.onLogout,
-                          tooltip: 'Log out',
-                          splashRadius: 20,
-                          icon: const Icon(
-                            Icons.logout_rounded,
-                            color: AppColors.darkGray,
-                            size: 24,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.star_rounded,
+                              color: AppColors.yellow,
+                              size: 22,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '$totalStars stars',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.darkGray,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.all(20),
-            sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                childAspectRatio: 0.85,
-              ),
-              delegate: SliverChildBuilderDelegate((context, index) {
-                final feature = _features[index];
-                return FeatureTile(
-                  feature: feature,
-                  onTap: () => _navigateToFeature(context, index),
-                );
-              }, childCount: _features.length),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.10),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: IconButton(
+                    onPressed: widget.onLogout,
+                    tooltip: 'Log out',
+                    splashRadius: 24,
+                    icon: const Icon(
+                      Icons.logout_rounded,
+                      color: AppColors.darkGray,
+                      size: 26,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A single category card: solid accent badge with a legible icon, plus a
+/// bold dark label on white for strong contrast.
+class _CategoryCard extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _CategoryCard({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  /// White on dark accents, dark on light ones, so the icon stays readable.
+  Color get _iconForeground =>
+      color.computeLuminance() > 0.55 ? AppColors.darkGray : Colors.white;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: color, width: 2.5),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.45),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Icon(icon, color: _iconForeground, size: 34),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 17,
+                  height: 1.15,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.darkGray,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

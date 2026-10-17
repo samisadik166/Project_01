@@ -7,13 +7,14 @@ import 'package:preschool_learning_app/features/kid_quiz_data.dart';
 import 'package:preschool_learning_app/features/quizzes_page.dart';
 
 void main() {
-  test('all five quiz categories contain eight accessible questions', () {
+  test('all six quiz categories contain eight accessible questions', () {
     expect(quizCategories.map((category) => category.title).toList(), [
       'Colors',
       'Shapes',
       'Animals',
       'Fruits',
       'Opposites',
+      'Vehicles',
     ]);
 
     for (final category in quizCategories) {
@@ -43,7 +44,7 @@ void main() {
     expect(shuffled.options.toSet(), question.options.toSet());
   });
 
-  testWidgets('quiz selection shows five categories and opens a quiz', (
+  testWidgets('quiz selection shows six categories and opens a quiz', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
@@ -57,6 +58,7 @@ void main() {
       'Animals',
       'Fruits',
       'Opposites',
+      'Vehicles',
     ]) {
       expect(find.text(title), findsOneWidget);
     }

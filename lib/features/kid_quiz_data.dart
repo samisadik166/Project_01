@@ -1,6 +1,25 @@
 import '../model/kid_quiz.dart';
 import '../utils/app_colors.dart';
 
+/// Vehicles quiz — reached from the Vehicles page ("Take Quiz!") and also
+/// listed on the main Quizzes tab.
+const vehiclesQuizCategory = QuizCategory(
+  quizId: 'vehicles',
+  title: 'Vehicles',
+  emoji: '🚌',
+  color: AppColors.yellow,
+  questions: [
+    QuizQuestion(questionText: 'Which one rides on rails?', emoji: '🛤️', options: [QuizOption(text: 'Train', emoji: '🚂'), QuizOption(text: 'Bus', emoji: '🚌'), QuizOption(text: 'Boat', emoji: '⛵')], correctAnswerIndex: 0, hint: 'It goes choo choo!'),
+    QuizQuestion(questionText: 'Which one flies in the sky?', emoji: '☁️', options: [QuizOption(text: 'Airplane', emoji: '✈️'), QuizOption(text: 'Car', emoji: '🚗'), QuizOption(text: 'Bicycle', emoji: '🚲')], correctAnswerIndex: 0),
+    QuizQuestion(questionText: 'Which one floats on water?', emoji: '🌊', options: [QuizOption(text: 'Boat', emoji: '⛵'), QuizOption(text: 'Train', emoji: '🚂'), QuizOption(text: 'Helicopter', emoji: '🚁')], correctAnswerIndex: 0),
+    QuizQuestion(questionText: 'Which one has two wheels?', emoji: '🛞', options: [QuizOption(text: 'Bicycle', emoji: '🚲'), QuizOption(text: 'Bus', emoji: '🚌'), QuizOption(text: 'Airplane', emoji: '✈️')], correctAnswerIndex: 0, hint: 'Ring ring!'),
+    QuizQuestion(questionText: 'Which one puts out fires?', emoji: '🔥', options: [QuizOption(text: 'Fire truck', emoji: '🚒'), QuizOption(text: 'Car', emoji: '🚗'), QuizOption(text: 'Boat', emoji: '⛵')], correctAnswerIndex: 0),
+    QuizQuestion(questionText: 'Which one takes sick people to hospital?', emoji: '🏥', options: [QuizOption(text: 'Ambulance', emoji: '🚑'), QuizOption(text: 'Airplane', emoji: '✈️'), QuizOption(text: 'Bicycle', emoji: '🚲')], correctAnswerIndex: 0),
+    QuizQuestion(questionText: 'Which one spins its blades and hovers?', emoji: '🌀', options: [QuizOption(text: 'Helicopter', emoji: '🚁'), QuizOption(text: 'Train', emoji: '🚂'), QuizOption(text: 'Bus', emoji: '🚌')], correctAnswerIndex: 0),
+    QuizQuestion(questionText: 'Which one carries many kids to school?', emoji: '🏫', options: [QuizOption(text: 'Bus', emoji: '🚌'), QuizOption(text: 'Motorcycle', emoji: '🏍️'), QuizOption(text: 'Boat', emoji: '⛵')], correctAnswerIndex: 0),
+  ],
+);
+
 const quizCategories = <QuizCategory>[
   QuizCategory(
     quizId: 'colors',
@@ -82,4 +101,5 @@ const quizCategories = <QuizCategory>[
       QuizQuestion(questionText: 'What is the opposite of loud?', emoji: '📣', options: [QuizOption(text: 'Quiet', emoji: '🤫'), QuizOption(text: 'Noisy', emoji: '🥁'), QuizOption(text: 'Big', emoji: '🐘')], correctAnswerIndex: 0),
     ],
   ),
+  vehiclesQuizCategory,
 ];

@@ -27,14 +27,39 @@ class FeatureTile extends StatelessWidget {
             child: Container(
               width: double.infinity,
               decoration: BoxDecoration(
-                color: feature.color.withOpacity(0.15),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    feature.color.withOpacity(0.72),
+                    feature.color,
+                  ],
+                ),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: feature.color.withOpacity(0.4),
+                  color: Colors.white.withOpacity(0.55),
                   width: 2,
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: feature.color.withOpacity(0.35),
+                    blurRadius: 10,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
               ),
-              child: Icon(feature.icon, color: feature.color, size: 32),
+              child: Icon(
+                feature.icon,
+                color: Colors.white,
+                size: 34,
+                shadows: const [
+                  Shadow(
+                    color: Color(0x33000000),
+                    offset: Offset(0, 2),
+                    blurRadius: 4,
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 6),

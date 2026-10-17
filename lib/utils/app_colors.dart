@@ -6,6 +6,9 @@ class AppColors {
   static const yellow = Color(0xFFFFC93C);
   static const teal = Color(0xFF4EE0C1);
   static const purple = Color(0xFF9B7BFF);
+  static const sky = Color(0xFF5CC8FF);
+  static const orange = Color(0xFFFF9F5A);
+  static const green = Color(0xFF7BD86B);
   static const cream = Color(0xFFFFF8E7);
 
   // Additional grays
