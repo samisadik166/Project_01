@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../model/child.dart';
 import '../utils/app_colors.dart';
 import '../utils/feature_tile.dart';
+import '../account_settings_page.dart';
 import '../add_child_page.dart';
 
 class ProfileTab extends StatefulWidget {
@@ -67,6 +68,39 @@ class _ProfileTabState extends State<ProfileTab> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
+  }
+
+  // The child-editing flow lives here, so ProfileTab hands it to
+  // AccountSettingsPage instead of that page duplicating the logic.
+  Future<void> _editChild(ChildModel child) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _ChildDetailPage(
+          child: child,
+          onSaved: () => widget.onChildrenChanged(),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openAccountSettings() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AccountSettingsPage(
+          onChildrenChanged: widget.onChildrenChanged,
+          onEditChild: _editChild,
+        ),
+      ),
+    );
+    if (mounted) await widget.onChildrenChanged();
+  }
+
+  void _handleOptionTap(FeatureItem item) {
+    if (item.label == 'Account Settings') {
+      _openAccountSettings();
+      return;
+    }
+    _showFeatureComingSoon(item.label);
   }
 
   @override
@@ -216,7 +250,7 @@ class _ProfileTabState extends State<ProfileTab> {
                   padding: const EdgeInsets.only(bottom: 12),
                   child: FeatureListTile(
                     item: item,
-                    onTap: () => _showFeatureComingSoon(item.label),
+                    onTap: () => _handleOptionTap(item),
                   ),
                 ),
               ),
